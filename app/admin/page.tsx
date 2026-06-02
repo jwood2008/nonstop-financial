@@ -252,10 +252,18 @@ function EngagementWidget() {
         </p>
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1.5 text-white/55">
-            <span className="h-2.5 w-2.5 rounded-sm bg-white" /> Active agents
+            <span
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{ background: "var(--chart-line-primary)" }}
+            />{" "}
+            Active agents
           </span>
           <span className="flex items-center gap-1.5 text-white/55">
-            <span className="h-2.5 w-2.5 rounded-sm bg-white/25" /> Lesson views
+            <span
+              className="h-2.5 w-2.5 rounded-sm"
+              style={{ background: "var(--color-line-2)" }}
+            />{" "}
+            Lesson views
           </span>
         </div>
       </div>
@@ -322,7 +330,7 @@ function TopContentTable({ limit }: { limit?: number }) {
             <th className="pb-3 text-right font-semibold">Trend</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/10">
+        <tbody className="divide-y divide-line">
           {rows.map((c) => (
             <tr key={c.title} className="text-zinc-200">
               <td className="py-3 font-medium text-white">{c.title}</td>

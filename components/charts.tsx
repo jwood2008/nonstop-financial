@@ -1,10 +1,12 @@
 "use client";
 
-// Charts are neutral/white on the dark app (no orange — reads less "AI").
-const ORANGE = "#fafafa";
+// Charts are neutral (no orange — reads less "AI"). Colors come from CSS
+// tokens so they flip with the theme: white ink on dark, near-black on light.
+const PRIMARY = "var(--chart-line-primary)";
+const SECONDARY = "var(--color-line-2)";
 
 /* ---------- Sparkline (KPI cards) ---------- */
-export function Sparkline({ data, color = ORANGE }: { data: number[]; color?: string }) {
+export function Sparkline({ data, color = PRIMARY }: { data: number[]; color?: string }) {
   const w = 120;
   const h = 36;
   const min = Math.min(...data);
@@ -17,17 +19,18 @@ export function Sparkline({ data, color = ORANGE }: { data: number[]; color?: st
   });
   const line = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p[0]},${p[1]}`).join(" ");
   const area = `${line} L${w},${h} L0,${h} Z`;
-  const id = `sg-${color.replace("#", "")}`;
+  // sanitize for a valid SVG id (color may be a hex or a var(--…) expression)
+  const id = `sg-${color.replace(/[^a-z0-9]/gi, "")}`;
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="h-9 w-full" preserveAspectRatio="none">
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.35" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.35 }} />
+          <stop offset="100%" style={{ stopColor: color, stopOpacity: 0 }} />
         </linearGradient>
       </defs>
       <path d={area} fill={`url(#${id})`} />
-      <path d={line} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <path d={line} fill="none" style={{ stroke: color }} strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -45,13 +48,13 @@ export function BarChart({
         <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
           <div className="flex h-full w-full items-end justify-center gap-[3px]">
             <div
-              className="w-1/2 bg-line-2"
-              style={{ height: `${(d.lessons / max) * 100}%` }}
+              className="w-1/2"
+              style={{ height: `${(d.lessons / max) * 100}%`, background: SECONDARY }}
               title={`${d.lessons} lesson views`}
             />
             <div
-              className="w-1/2 bg-white"
-              style={{ height: `${(d.active / max) * 100}%` }}
+              className="w-1/2"
+              style={{ height: `${(d.active / max) * 100}%`, background: PRIMARY }}
               title={`${d.active} active agents`}
             />
           </div>
@@ -78,8 +81,8 @@ export function AreaLine({ data }: { data: number[] }) {
     <svg viewBox={`0 0 ${w} ${h}`} className="h-44 w-full" preserveAspectRatio="none">
       <defs>
         <linearGradient id="ret" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={ORANGE} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={ORANGE} stopOpacity="0" />
+          <stop offset="0%" style={{ stopColor: PRIMARY, stopOpacity: 0.4 }} />
+          <stop offset="100%" style={{ stopColor: PRIMARY, stopOpacity: 0 }} />
         </linearGradient>
       </defs>
       {[25, 50, 75].map((g) => (
@@ -89,12 +92,12 @@ export function AreaLine({ data }: { data: number[] }) {
           x2={w}
           y1={h - (g / max) * (h - 10) - 5}
           y2={h - (g / max) * (h - 10) - 5}
-          stroke="#27272a"
+          style={{ stroke: "var(--chart-grid)" }}
           strokeWidth="1"
         />
       ))}
       <path d={area} fill="url(#ret)" />
-      <path d={line} fill="none" stroke={ORANGE} strokeWidth="2.5" strokeLinecap="round" />
+      <path d={line} fill="none" style={{ stroke: PRIMARY }} strokeWidth="2.5" strokeLinecap="round" />
     </svg>
   );
 }
@@ -102,7 +105,13 @@ export function AreaLine({ data }: { data: number[] }) {
 /* ---------- Donut (audience by module) ---------- */
 export function Donut({ data }: { data: { label: string; value: number }[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
-  const palette = ["#fafafa", "#a1a1aa", "#52525b", "#3f3f46"];
+  // theme-aware ramp: distinct steps that read on both dark and light paper
+  const palette = [
+    "var(--chart-line-primary)",
+    "var(--chart-foreground)",
+    "var(--chart-foreground-muted)",
+    "var(--color-line-2)",
+  ];
   let acc = 0;
   const R = 60;
   const C = 2 * Math.PI * R;
@@ -119,7 +128,7 @@ export function Donut({ data }: { data: { label: string; value: number }[] }) {
               cy="80"
               r={R}
               fill="none"
-              stroke={palette[i % palette.length]}
+              style={{ stroke: palette[i % palette.length] }}
               strokeWidth="20"
               strokeDasharray={`${dash} ${C - dash}`}
               strokeDashoffset={-acc * C}
@@ -128,7 +137,7 @@ export function Donut({ data }: { data: { label: string; value: number }[] }) {
           acc += frac;
           return seg;
         })}
-        <circle cx="80" cy="80" r="42" fill="#0a0a0a" />
+        <circle cx="80" cy="80" r="42" style={{ fill: "var(--chart-background)" }} />
       </svg>
       <ul className="space-y-2">
         {data.map((d, i) => (
@@ -149,7 +158,8 @@ export function Donut({ data }: { data: { label: string; value: number }[] }) {
 /* ---------- Active-hours heatmap ---------- */
 export function Heatmap({ grid }: { grid: number[][] }) {
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const shade = ["#18181b", "#303034", "#4b4b52", "#8a8a93", "#fafafa"];
+  // intensity 0–4 as opacity over the theme ink: faint→solid in either mode
+  const intensity = [0.06, 0.22, 0.42, 0.68, 1];
   return (
     <div className="space-y-1.5">
       {grid.map((row, r) => (
@@ -159,7 +169,10 @@ export function Heatmap({ grid }: { grid: number[][] }) {
             <div
               key={c}
               className="h-4 flex-1 "
-              style={{ background: shade[v] }}
+              style={{
+                background: "var(--chart-line-primary)",
+                opacity: intensity[v] ?? 0.06,
+              }}
               title={`${days[r]} · ${c * 2}:00–${c * 2 + 2}:00`}
             />
           ))}
@@ -194,8 +207,8 @@ export function Funnel({ data }: { data: { stage: string; value: number }[] }) {
             </div>
             <div className="h-2 overflow-hidden bg-surface-3">
               <div
-                className="h-full bg-white"
-                style={{ width: `${pct}%` }}
+                className="h-full"
+                style={{ width: `${pct}%`, background: PRIMARY }}
               />
             </div>
           </div>

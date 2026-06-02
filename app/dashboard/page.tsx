@@ -319,7 +319,7 @@ function IntroHero({
 }) {
   return (
     <section
-      className="relative overflow-hidden rounded-3xl border border-white/10 px-6 py-16 sm:px-10 sm:py-20"
+      className="on-media relative overflow-hidden rounded-3xl border border-white/10 px-6 py-16 sm:px-10 sm:py-20"
       style={{ backgroundColor: "#15161a" }}
     >
       <HeroSlideshow images={HERO_IMAGES} />

@@ -29,6 +29,9 @@ const LS_DONE = "nf.completed"; // string[] of lessonIds
 const LS_PERSONAS = "nf.personas";
 const LS_QUIZ = "nf.quizResults"; // { [blockId]: QuizAttempt[] }
 const LS_PROFILE = "nf.profile";
+const LS_THEME = "nf.theme"; // "dark" | "light"
+
+type Theme = "dark" | "light";
 
 const DEFAULT_PROFILE = { name: "", avatar: "", phone: "", title: "" };
 
@@ -42,6 +45,10 @@ interface Store {
   role: Role;
   setRole: (r: Role) => void;
   canBeAdmin: boolean;
+
+  // appearance
+  theme: Theme;
+  setTheme: (t: Theme) => void;
 
   // editable account profile (no backend — persisted locally)
   profile: { name: string; avatar: string; phone: string; title: string };
@@ -123,11 +130,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
+  const [theme, setThemeState] = useState<Theme>("dark");
 
   // hydrate from localStorage
   useEffect(() => {
     setEmail(read<string | null>(LS_EMAIL, null));
     setRoleState(read<Role>(LS_ROLE, "user"));
+    setThemeState(
+      ((typeof window !== "undefined" &&
+        (window.localStorage.getItem(LS_THEME) as Theme | null)) ||
+        "dark") as Theme
+    );
     setCourse(read<Course>(LS_COURSE, SEED_COURSE));
     setPersonas(read<Persona[]>(LS_PERSONAS, SEED_PERSONAS));
     setQuizResults(read<Record<string, QuizAttempt[]>>(LS_QUIZ, {}));
@@ -158,6 +171,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [completed, ready]);
 
   const canBeAdmin = isAdminEmail(email);
+
+  // reflect the theme onto <html> so CSS (html.light / html.dark) can switch
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", theme === "dark");
+    root.classList.toggle("light", theme === "light");
+  }, [theme]);
+
+  const setTheme = (t: Theme) => {
+    setThemeState(t);
+    if (typeof window !== "undefined") window.localStorage.setItem(LS_THEME, t);
+  };
 
   const setRole = (r: Role) => {
     setRoleState(r);
@@ -202,6 +227,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       role,
       setRole,
       canBeAdmin,
+      theme,
+      setTheme,
       profile,
       updateProfile: (patch) => setProfile((p) => ({ ...p, ...patch })),
       course,
@@ -326,7 +353,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, profile, course, personas, quizResults, notes, completed]
+    [ready, email, role, canBeAdmin, theme, profile, course, personas, quizResults, notes, completed]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

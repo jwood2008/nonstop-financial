@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Drive the `dark:` variant from the .dark class on <html> (set by the store /
+   pre-paint script) instead of the OS preference, so the in-app toggle wins.
+   Components written as `base + dark:override` then follow the toggle for free. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ===== NonStop Financial — Design System =====
    A restrained, dense operations UI for an insurance training platform.
    Neutrals carry 90% of the surface; Nonstop Orange is the single accent,
@@ -140,4 +145,190 @@ body {
 }
 .scroll-thin::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* =====================================================================
+   LIGHT MODE
+   The app is authored dark-first (raw `text-white`, `bg-[#33343a]`, …),
+   so light mode is delivered in two layers under `html.light`:
+   (1) flip the semantic design tokens, and
+   (2) remap the handful of hard-coded utilities that don't use tokens.
+   `.on-media` (the photo hero) and orange buttons keep white text.
+   ===================================================================== */
+html.light {
+  /* surfaces & structure */
+  --color-ink: #f5f6f8; /* page background */
+  --color-surface: #ffffff;
+  --color-surface-2: #f3f4f6;
+  --color-surface-3: #e5e7eb;
+  --color-line: rgba(9, 9, 11, 0.1);
+  --color-line-2: rgba(9, 9, 11, 0.16);
+  --color-muted: #52525b;
+  --color-muted-2: #71717a;
+
+  /* charts read these — dark ink on light paper, never orange */
+  --chart-background: #ffffff;
+  --chart-foreground: #52525b;
+  --chart-foreground-muted: #71717a;
+  --chart-line-primary: #18181b;
+  --chart-line-secondary: #6b7280;
+  --chart-crosshair: rgba(0, 0, 0, 0.35);
+  --chart-grid: rgba(0, 0, 0, 0.1);
+  --chart-label: #71717a;
+  --chart-tooltip-background: #ffffff;
+  --chart-tooltip-foreground: #18181b;
+  --chart-tooltip-muted: #52525b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+
+  /* shadcn semantic tokens */
+  --color-background: #ffffff;
+  --color-foreground: #18181b;
+  --color-card: #ffffff;
+  --color-card-foreground: #18181b;
+  --color-secondary: #f3f4f6;
+  --color-secondary-foreground: #18181b;
+  --color-accent: #f3f4f6;
+  --color-accent-foreground: #18181b;
+  --color-primary: #18181b;
+  --color-primary-foreground: #ffffff;
+  --color-border: rgba(9, 9, 11, 0.12);
+  --color-input: rgba(9, 9, 11, 0.16);
+  --color-popover-foreground: #18181b;
+
+  color-scheme: light;
+}
+
+html.light body {
+  background: var(--color-ink);
+  color: #18181b;
+}
+
+/* --- (2) remap hard-coded utilities (scoped to light only) --- */
+
+/* panels / surfaces */
+html.light .bg-\[\#33343a\] {
+  background-color: #ffffff;
+}
+html.light .bg-\[\#3c3d44\] {
+  background-color: #f3f4f6;
+}
+
+/* solid white text → near-black ink */
+html.light .text-white {
+  color: #18181b;
+}
+/* …but keep white on orange buttons (both classes on one element) */
+html.light .bg-nonstop.text-white {
+  color: #ffffff;
+}
+
+/* faded white text scale → faded ink */
+html.light .text-white\/90 {
+  color: rgba(24, 24, 27, 0.9);
+}
+html.light .text-white\/80 {
+  color: rgba(24, 24, 27, 0.8);
+}
+html.light .text-white\/70 {
+  color: rgba(24, 24, 27, 0.72);
+}
+html.light .text-white\/60 {
+  color: rgba(24, 24, 27, 0.64);
+}
+html.light .text-white\/55 {
+  color: rgba(24, 24, 27, 0.6);
+}
+html.light .text-white\/50 {
+  color: rgba(24, 24, 27, 0.55);
+}
+html.light .text-white\/45 {
+  color: rgba(24, 24, 27, 0.5);
+}
+html.light .text-white\/40 {
+  color: rgba(24, 24, 27, 0.45);
+}
+html.light .text-white\/35 {
+  color: rgba(24, 24, 27, 0.42);
+}
+html.light .text-white\/30 {
+  color: rgba(24, 24, 27, 0.38);
+}
+
+/* zinc/slate "bright on dark" text → dark on light */
+html.light .text-zinc-300 {
+  color: #3f3f46;
+}
+html.light .text-zinc-200 {
+  color: #27272a;
+}
+html.light .text-zinc-400 {
+  color: #52525b;
+}
+html.light .text-slate-400,
+html.light .text-slate-500 {
+  color: #475569;
+}
+
+/* hairline borders / rings → translucent ink */
+html.light .border-white\/10 {
+  border-color: rgba(9, 9, 11, 0.1);
+}
+html.light .border-white\/5 {
+  border-color: rgba(9, 9, 11, 0.06);
+}
+html.light .border-white\/15 {
+  border-color: rgba(9, 9, 11, 0.14);
+}
+html.light .ring-white\/15 {
+  --tw-ring-color: rgba(9, 9, 11, 0.14);
+}
+html.light .ring-white\/10 {
+  --tw-ring-color: rgba(9, 9, 11, 0.1);
+}
+
+/* translucent white fills → translucent ink */
+html.light .bg-white\/\[0\.02\] {
+  background-color: rgba(9, 9, 11, 0.02);
+}
+html.light .bg-white\/\[0\.03\] {
+  background-color: rgba(9, 9, 11, 0.03);
+}
+html.light .bg-white\/\[0\.04\] {
+  background-color: rgba(9, 9, 11, 0.04);
+}
+html.light .bg-white\/5 {
+  background-color: rgba(9, 9, 11, 0.05);
+}
+html.light .bg-white\/10 {
+  background-color: rgba(9, 9, 11, 0.08);
+}
+html.light .bg-white\/25 {
+  background-color: rgba(9, 9, 11, 0.18);
+}
+
+/* --- hero stays dark (white text over the photo scrim) --- */
+html.light .on-media .text-white {
+  color: #ffffff;
+}
+html.light .on-media .text-white\/70 {
+  color: rgba(255, 255, 255, 0.7);
+}
+html.light .on-media .text-white\/55 {
+  color: rgba(255, 255, 255, 0.55);
+}
+html.light .on-media .text-white\/50 {
+  color: rgba(255, 255, 255, 0.5);
+}
+html.light .on-media .text-white\/40 {
+  color: rgba(255, 255, 255, 0.4);
+}
+html.light .on-media .border-white\/10 {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+html.light .on-media .bg-white\/\[0\.04\] {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+html.light .on-media .bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.1);
 }

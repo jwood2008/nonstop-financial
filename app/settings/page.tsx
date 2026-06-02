@@ -12,6 +12,8 @@ import {
   Shield,
   Lock,
   Check,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -23,7 +25,8 @@ export default function SettingsPage() {
 }
 
 function Settings() {
-  const { email, role, profile, updateProfile, logout } = useStore();
+  const { email, role, profile, updateProfile, logout, theme, setTheme } =
+    useStore();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
@@ -143,6 +146,28 @@ function Settings() {
         <p className="mt-3 text-xs text-muted-2">Changes save automatically.</p>
       </Section>
 
+      {/* Appearance */}
+      <Section title="Appearance" subtitle="Choose how NonStop Financial looks.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <ThemeOption
+            active={theme === "dark"}
+            onClick={() => setTheme("dark")}
+            icon={<Moon className="h-4 w-4" />}
+            label="Dark"
+            desc="The original, low-glare interface."
+            swatch="#15161a"
+          />
+          <ThemeOption
+            active={theme === "light"}
+            onClick={() => setTheme("light")}
+            icon={<Sun className="h-4 w-4" />}
+            label="Light"
+            desc="Bright paper for well-lit rooms."
+            swatch="#ffffff"
+          />
+        </div>
+      </Section>
+
       {/* Security */}
       <Section title="Security" subtitle="Password and account access.">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -246,6 +271,48 @@ function Section({
   );
 }
 
+function ThemeOption({
+  active,
+  onClick,
+  icon,
+  label,
+  desc,
+  swatch,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  desc: string;
+  swatch: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex items-center gap-3 border p-3 text-left transition ${
+        active
+          ? "border-nonstop bg-nonstop/10"
+          : "border-line-2 bg-surface-2 hover:border-line"
+      }`}
+    >
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line text-white"
+        style={{ background: swatch, color: swatch === "#ffffff" ? "#18181b" : "#fff" }}
+      >
+        {icon}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-white">
+          {label}
+          {active && <Check className="h-3.5 w-3.5 text-nonstop" />}
+        </span>
+        <span className="block text-xs text-muted-2">{desc}</span>
+      </span>
+    </button>
+  );
+}
+
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
@@ -268,7 +335,7 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
       }`}
     >
       <span
-        className={`absolute top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white transition-transform ${
+        className={`absolute top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/5 transition-transform ${
           on ? "translate-x-[18px]" : "translate-x-0.5"
         }`}
       >
