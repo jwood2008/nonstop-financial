@@ -139,6 +139,19 @@ function Settings() {
               className={inputCls}
             />
           </Field>
+          <Field label="Age">
+            <input
+              type="number"
+              min={13}
+              max={120}
+              value={profile.age || ""}
+              onChange={(e) =>
+                updateProfile({ age: parseInt(e.target.value, 10) || 0 })
+              }
+              placeholder="—"
+              className={inputCls}
+            />
+          </Field>
           <Field label="Email">
             <input value={email ?? ""} disabled className={`${inputCls} opacity-60`} />
           </Field>

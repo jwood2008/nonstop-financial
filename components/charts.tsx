@@ -105,13 +105,10 @@ export function AreaLine({ data }: { data: number[] }) {
 /* ---------- Donut (audience by module) ---------- */
 export function Donut({ data }: { data: { label: string; value: number }[] }) {
   const total = data.reduce((s, d) => s + d.value, 0);
-  // theme-aware ramp: distinct steps that read on both dark and light paper
-  const palette = [
-    "var(--chart-line-primary)",
-    "var(--chart-foreground)",
-    "var(--chart-foreground-muted)",
-    "var(--color-line-2)",
-  ];
+  // monochrome ramp over the theme ink — distinct steps for any segment count,
+  // and reads on both dark and light paper.
+  const opacityFor = (i: number) =>
+    1 - (i / Math.max(data.length - 1, 1)) * 0.78;
   let acc = 0;
   const R = 60;
   const C = 2 * Math.PI * R;
@@ -128,7 +125,8 @@ export function Donut({ data }: { data: { label: string; value: number }[] }) {
               cy="80"
               r={R}
               fill="none"
-              style={{ stroke: palette[i % palette.length] }}
+              style={{ stroke: "var(--chart-line-primary)" }}
+              strokeOpacity={opacityFor(i)}
               strokeWidth="20"
               strokeDasharray={`${dash} ${C - dash}`}
               strokeDashoffset={-acc * C}
@@ -143,8 +141,11 @@ export function Donut({ data }: { data: { label: string; value: number }[] }) {
         {data.map((d, i) => (
           <li key={i} className="flex items-center gap-2 text-sm">
             <span
-              className="h-2.5 w-2.5 "
-              style={{ background: palette[i % palette.length] }}
+              className="h-2.5 w-2.5"
+              style={{
+                background: "var(--chart-line-primary)",
+                opacity: opacityFor(i),
+              }}
             />
             <span className="text-muted">{d.label}</span>
             <span className="ml-auto font-semibold text-white">{d.value}%</span>

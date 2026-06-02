@@ -166,9 +166,12 @@ export const ACTIVE_HEATMAP: number[][] = [
 ];
 
 /** Audience breakdown by module (like IG "audience" donut). */
-export const AUDIENCE_BY_MODULE = [
-  { label: "Insurance Foundations", value: 34 },
-  { label: "Product Training", value: 28 },
-  { label: "Sales Training", value: 23 },
-  { label: "Advanced Production", value: 15 },
+// Age distribution of the audience (sums to 100%). Buckets match the brackets
+// collected at signup — see ageBracket() in lib/store.
+export const AUDIENCE_BY_AGE = [
+  { label: "18 & under", value: 6 },
+  { label: "18–24", value: 31 },
+  { label: "25–34", value: 38 },
+  { label: "35–44", value: 17 },
+  { label: "45+", value: 8 },
 ];

@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ExpandablePanel } from "@/components/ui/expandable-card";
 import { useStore } from "@/lib/store";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   Sparkline,
   BarChart,
@@ -20,7 +22,7 @@ import {
   TOP_CONTENT,
   LEADERBOARD,
   ACTIVE_HEATMAP,
-  AUDIENCE_BY_MODULE,
+  AUDIENCE_BY_AGE,
 } from "@/lib/data";
 import {
   TrendingUp,
@@ -142,8 +144,8 @@ function Analytics() {
         </ExpandablePanel>
 
         <ExpandablePanel
-          label="Audience by Module"
-          title="Audience by Module"
+          label="Audience by Age"
+          title="Audience by Age"
           tone="light"
           preview={<AudienceWidget />}
         >
@@ -299,10 +301,37 @@ function FunnelWidget() {
 }
 
 function AudienceWidget() {
+  // Live age distribution from Supabase signups; falls back to the sample data
+  // until there are enough real accounts to populate it.
+  const [data, setData] = useState(AUDIENCE_BY_AGE);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let cancelled = false;
+    (async () => {
+      const { data: rows, error } = await supabase!.rpc("age_distribution");
+      if (cancelled || error || !rows) return;
+      const total = (rows as { label: string; value: number }[]).reduce(
+        (s, r) => s + r.value,
+        0
+      );
+      if (total > 0) {
+        setData(rows as { label: string; value: number }[]);
+        setLive(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <>
-      <p className="mb-3 text-xs text-white/45">Share of views by module</p>
-      <Donut data={AUDIENCE_BY_MODULE} />
+      <p className="mb-3 text-xs text-white/45">
+        Share of audience by age bracket{live ? "" : " · sample data"}
+      </p>
+      <Donut data={data} />
     </>
   );
 }

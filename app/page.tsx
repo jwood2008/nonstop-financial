@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useStore } from "@/lib/store";
@@ -42,17 +43,12 @@ const AUDIENCES = [
 ];
 
 export default function Landing() {
-  const { ready, loggedIn, login } = useStore();
+  const { ready, loggedIn } = useStore();
   const router = useRouter();
 
   useEffect(() => {
     if (ready && loggedIn) router.replace("/dashboard");
   }, [ready, loggedIn, router]);
-
-  const enter = () => {
-    login();
-    router.push("/dashboard");
-  };
 
   return (
     <div className="min-h-screen">
@@ -61,15 +57,18 @@ export default function Landing() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <Logo />
           <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted-2 sm:inline">
-              Private preview
-            </span>
-            <button
-              onClick={enter}
-              className="border border-line-2 px-3 py-1.5 text-sm font-medium text-white transition hover:border-zinc-500"
+            <Link
+              href="/login"
+              className="px-3 py-1.5 text-sm font-medium text-muted transition hover:text-white"
             >
               Log in
-            </button>
+            </Link>
+            <Link
+              href="/signup"
+              className="border border-line-2 px-3 py-1.5 text-sm font-medium text-white transition hover:border-zinc-500"
+            >
+              Sign up
+            </Link>
           </div>
         </div>
       </header>
@@ -91,16 +90,19 @@ export default function Landing() {
               and performance in one place.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
-              <button
-                onClick={enter}
+              <Link
+                href="/signup"
                 className="group inline-flex items-center gap-2 bg-nonstop px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
               >
-                Enter platform
+                Create your account
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-              </button>
-              <span className="text-xs text-muted-2">
-                Preview access — no password required.
-              </span>
+              </Link>
+              <Link
+                href="/login"
+                className="text-xs text-muted-2 transition hover:text-white"
+              >
+                Already have an account? Log in
+              </Link>
             </div>
           </div>
 

@@ -20,6 +20,7 @@ import type { Persona } from "./personas";
 import { SEED_COURSE } from "./data";
 import { SEED_PERSONAS } from "./personas";
 import { DEMO_EMAIL, isAdminEmail } from "./admins";
+import { supabase, isSupabaseConfigured } from "./supabase";
 
 const LS_ROLE = "nf.role";
 const LS_EMAIL = "nf.email";
@@ -30,17 +31,48 @@ const LS_PERSONAS = "nf.personas";
 const LS_QUIZ = "nf.quizResults"; // { [blockId]: QuizAttempt[] }
 const LS_PROFILE = "nf.profile";
 const LS_THEME = "nf.theme"; // "dark" | "light"
+const LS_ACCOUNTS = "nf.accounts"; // { [emailLower]: Account }
 
 type Theme = "dark" | "light";
 
-const DEFAULT_PROFILE = { name: "", avatar: "", phone: "", title: "" };
+/** A locally-stored account. No backend yet — this stands in for Supabase. */
+type Account = {
+  email: string;
+  password: string;
+  name: string;
+  age: number;
+};
+
+type AuthResult =
+  | { ok: true; needsConfirmation?: boolean }
+  | { ok: false; error: string };
+
+const DEFAULT_PROFILE = { name: "", avatar: "", phone: "", title: "", age: 0 };
+
+/** Bucket a raw age into the brackets shown in the analytics audience widget. */
+export function ageBracket(age: number): string {
+  if (!age || age <= 18) return "18 & under";
+  if (age <= 24) return "18–24";
+  if (age <= 34) return "25–34";
+  if (age <= 44) return "35–44";
+  return "45+";
+}
 
 interface Store {
   ready: boolean;
   email: string | null;
   loggedIn: boolean;
-  login: () => void;
+  login: (email?: string) => void;
   logout: () => void;
+  // credential auth — Supabase when configured, local preview otherwise
+  signUp: (data: {
+    name: string;
+    email: string;
+    password: string;
+    age: number;
+  }) => Promise<AuthResult>;
+  signIn: (email: string, password: string) => Promise<AuthResult>;
+  resendConfirmation: (email: string) => Promise<AuthResult>;
 
   role: Role;
   setRole: (r: Role) => void;
@@ -51,7 +83,7 @@ interface Store {
   setTheme: (t: Theme) => void;
 
   // editable account profile (no backend — persisted locally)
-  profile: { name: string; avatar: string; phone: string; title: string };
+  profile: { name: string; avatar: string; phone: string; title: string; age: number };
   updateProfile: (patch: Partial<Store["profile"]>) => void;
 
   course: Course;
@@ -131,10 +163,30 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [theme, setThemeState] = useState<Theme>("dark");
+  const [accounts, setAccounts] = useState<Record<string, Account>>({});
 
-  // hydrate from localStorage
+  // pull a logged-in user's profile row from Supabase into local state
+  const loadProfile = async (uid: string) => {
+    if (!supabase) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("name, age, phone, title, avatar")
+      .eq("id", uid)
+      .maybeSingle();
+    if (data)
+      setProfile((p) => ({
+        ...p,
+        name: data.name ?? p.name,
+        age: data.age ?? p.age,
+        phone: data.phone ?? p.phone,
+        title: data.title ?? p.title,
+        avatar: data.avatar ?? p.avatar,
+      }));
+  };
+
+  // hydrate local-only state from localStorage; auth comes from Supabase when
+  // configured, otherwise from the local preview session.
   useEffect(() => {
-    setEmail(read<string | null>(LS_EMAIL, null));
     setRoleState(read<Role>(LS_ROLE, "user"));
     setThemeState(
       ((typeof window !== "undefined" &&
@@ -144,10 +196,40 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setCourse(read<Course>(LS_COURSE, SEED_COURSE));
     setPersonas(read<Persona[]>(LS_PERSONAS, SEED_PERSONAS));
     setQuizResults(read<Record<string, QuizAttempt[]>>(LS_QUIZ, {}));
-    setProfile(read(LS_PROFILE, DEFAULT_PROFILE));
+    setProfile({ ...DEFAULT_PROFILE, ...read(LS_PROFILE, DEFAULT_PROFILE) });
+    setAccounts(read<Record<string, Account>>(LS_ACCOUNTS, {}));
     setNotes(read<Record<string, string>>(LS_NOTES, {}));
     setCompleted(new Set(read<string[]>(LS_DONE, [])));
-    setReady(true);
+
+    if (!isSupabaseConfigured || !supabase) {
+      setEmail(read<string | null>(LS_EMAIL, null));
+      setReady(true);
+      return;
+    }
+
+    // Supabase: resolve the session before marking ready so authenticated
+    // users aren't bounced to the landing page on a hard refresh.
+    let unsub: { unsubscribe: () => void } | undefined;
+    supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user;
+      if (user) {
+        setEmail(user.email ?? null);
+        void loadProfile(user.id);
+      }
+      setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      const user = session?.user;
+      if (user) {
+        setEmail(user.email ?? null);
+        void loadProfile(user.id);
+      } else {
+        setEmail(null);
+      }
+    });
+    unsub = sub.subscription;
+    return () => unsub?.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // persist
@@ -163,6 +245,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_PROFILE, JSON.stringify(profile));
   }, [profile, ready]);
+  useEffect(() => {
+    if (ready) window.localStorage.setItem(LS_ACCOUNTS, JSON.stringify(accounts));
+  }, [accounts, ready]);
+
+  // sync profile edits back to Supabase (avatar stays local — too large for a row)
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !email) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase!.auth.getUser();
+      const user = data.user;
+      if (!user || cancelled) return;
+      await supabase!.from("profiles").upsert({
+        id: user.id,
+        email: user.email,
+        name: profile.name,
+        age: profile.age || null,
+        phone: profile.phone,
+        title: profile.title,
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.name, profile.age, profile.phone, profile.title, ready, email]);
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_NOTES, JSON.stringify(notes));
   }, [notes, ready]);
@@ -189,14 +296,114 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined") window.localStorage.setItem(LS_ROLE, r);
   };
 
-  const login = () => {
-    setEmail(DEMO_EMAIL);
-    window.localStorage.setItem(LS_EMAIL, JSON.stringify(DEMO_EMAIL));
+  const login = (em?: string) => {
+    const next = em ?? DEMO_EMAIL;
+    setEmail(next);
+    window.localStorage.setItem(LS_EMAIL, JSON.stringify(next));
   };
   const logout = () => {
+    if (isSupabaseConfigured && supabase) void supabase.auth.signOut();
     setEmail(null);
     window.localStorage.removeItem(LS_EMAIL);
+    setProfile(DEFAULT_PROFILE);
     setRole("user");
+  };
+
+  const signUp: Store["signUp"] = async ({ name, email: em, password, age }) => {
+    const key = em.trim().toLowerCase();
+    if (!name.trim()) return { ok: false, error: "Enter your name." };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(key))
+      return { ok: false, error: "Enter a valid email address." };
+    if (password.length < 6)
+      return { ok: false, error: "Password must be at least 6 characters." };
+    if (!age || age < 13 || age > 120)
+      return { ok: false, error: "Enter a valid age (13–120)." };
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email: key,
+        password,
+        options: {
+          data: { name: name.trim(), age },
+          emailRedirectTo:
+            typeof window !== "undefined" ? window.location.origin : undefined,
+        },
+      });
+      if (error) return { ok: false, error: error.message };
+      setProfile({ ...DEFAULT_PROFILE, name: name.trim(), age });
+      if (data.session?.user) {
+        // confirmation disabled — straight in
+        setEmail(data.session.user.email ?? key);
+        return { ok: true };
+      }
+      // confirmation enabled — user must click the link in their email
+      return { ok: true, needsConfirmation: true };
+    }
+
+    // local preview fallback
+    if (accounts[key])
+      return { ok: false, error: "An account with this email already exists." };
+    const account: Account = { email: key, password, name: name.trim(), age };
+    setAccounts((prev) => ({ ...prev, [key]: account }));
+    setProfile({ ...DEFAULT_PROFILE, name: account.name, age });
+    login(key);
+    return { ok: true };
+  };
+
+  const signIn: Store["signIn"] = async (em, password) => {
+    const key = em.trim().toLowerCase();
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: key,
+        password,
+      });
+      if (error) {
+        const m = error.message;
+        const msg = /invalid login credentials/i.test(m)
+          ? "Incorrect email or password."
+          : /email not confirmed/i.test(m)
+            ? "Please confirm your email first — check your inbox for the link."
+            : m;
+        return { ok: false, error: msg };
+      }
+      if (data.user) {
+        setEmail(data.user.email ?? key);
+        await loadProfile(data.user.id);
+      }
+      return { ok: true };
+    }
+
+    // local preview fallback
+    const account = accounts[key];
+    if (account) {
+      if (account.password !== password)
+        return { ok: false, error: "Incorrect password." };
+      setProfile((p) => ({ ...p, name: p.name || account.name, age: account.age }));
+      login(key);
+      return { ok: true };
+    }
+    // seeded admin/demo emails work without registering
+    if (isAdminEmail(key) || key === DEMO_EMAIL.toLowerCase()) {
+      if (!password) return { ok: false, error: "Enter your password." };
+      login(key);
+      return { ok: true };
+    }
+    return { ok: false, error: "No account found for that email." };
+  };
+
+  const resendConfirmation: Store["resendConfirmation"] = async (em) => {
+    if (!isSupabaseConfigured || !supabase) return { ok: true };
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: em.trim().toLowerCase(),
+      options: {
+        emailRedirectTo:
+          typeof window !== "undefined" ? window.location.origin : undefined,
+      },
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
   };
 
   // ---- course mutations ----
@@ -224,6 +431,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       loggedIn: !!email,
       login,
       logout,
+      signUp,
+      signIn,
+      resendConfirmation,
       role,
       setRole,
       canBeAdmin,
@@ -353,7 +563,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, theme, profile, course, personas, quizResults, notes, completed]
+    [ready, email, role, canBeAdmin, theme, profile, accounts, course, personas, quizResults, notes, completed]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
