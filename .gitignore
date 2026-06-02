@@ -7,3 +7,7 @@
 .env*
 /.vercel
 next-env.d.ts
+.vercel
+
+# typescript incremental build cache
+*.tsbuildinfo
