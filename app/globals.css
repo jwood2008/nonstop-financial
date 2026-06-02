@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/* ===== NonStop Financial — Design System =====
+   A restrained, dense operations UI for an insurance training platform.
+   Neutrals carry 90% of the surface; Nonstop Orange is the single accent,
+   reserved for primary actions and the brand mark. Built to read like
+   Linear / Ramp / Stripe — credible, legible, stable.
+   ============================================ */
+
+@theme {
+  /* Brand palette: Black · White · Hot Orange (#FF5F1F) + a rare red→orange.
+     Orange is the single accent, used sparingly (primary action + brand mark). */
+  --color-nonstop: #ff5f1f;
+  --color-nonstop-dark: #e54e10;
+  --color-nonstop-red: #ff3403; /* gradient origin — logo/brand flourish only */
+
+  /* Warm charcoal base (not pure black), with layered surfaces for depth */
+  --color-ink: #0d0e11;
+  --color-surface: #15161a;
+  --color-surface-2: #1c1e24;
+  --color-surface-3: #25282f;
+
+  /* hairline structure: translucent white reads cleaner than solid dark */
+  --color-line: rgba(255, 255, 255, 0.09);
+  --color-line-2: rgba(255, 255, 255, 0.16);
+
+  --color-muted: #a1a1aa;
+  --color-muted-2: #71717a;
+
+  --color-success: #22c55e;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* Brand fonts (guide's approved Google substitutes):
+     Oswald = Bebas Neue Pro alt (display/headlines) · Inter = Neue Haas alt */
+  --font-display: var(--font-oswald), "Oswald", sans-serif;
+  --font-sans: var(--font-inter), "Inter", system-ui, sans-serif;
+}
+
+/* chart tokens → Tailwind utilities (text-chart-label, bg-popover, …) */
+@theme inline {
+  --color-chart-background: var(--chart-background);
+  --color-chart-foreground: var(--chart-foreground);
+  --color-chart-foreground-muted: var(--chart-foreground-muted);
+  --color-chart-line-primary: var(--chart-line-primary);
+  --color-chart-line-secondary: var(--chart-line-secondary);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-crosshair: var(--chart-crosshair);
+  --color-chart-label: var(--chart-label);
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* shadcn semantic tokens (used by registry components: dock, button, input…) */
+  --color-primary: #ffffff;
+  --color-primary-foreground: #0b0b0c;
+  --color-secondary: #161618;
+  --color-secondary-foreground: #fafafa;
+  --color-background: #0b0b0c;
+  --color-foreground: #fafafa;
+  --color-card: #0d0d0e;
+  --color-card-foreground: #fafafa;
+  --color-muted-foreground: #a1a1aa;
+  --color-accent: #1f1f22;
+  --color-accent-foreground: #fafafa;
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-input: rgba(255, 255, 255, 0.16);
+  --color-ring: #ff5f1f;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #fafafa;
+}
+
+:root {
+  /* Charts read these. Kept neutral / WHITE on the dark app — never orange
+     (orange data lines read as "AI"; white is the credible choice). */
+  --chart-background: #0b0b0c;
+  --chart-foreground: #a1a1aa;
+  --chart-foreground-muted: #71717a;
+  --chart-line-primary: #ffffff;
+  --chart-line-secondary: #a1a1aa;
+  --chart-crosshair: rgba(255, 255, 255, 0.35);
+  --chart-grid: rgba(255, 255, 255, 0.1);
+  --chart-label: #71717a;
+  --chart-tooltip-background: #161618;
+  --chart-tooltip-foreground: #fafafa;
+  --chart-tooltip-muted: #a1a1aa;
+  --popover: #161618;
+  --popover-foreground: #fafafa;
+}
+
+* {
+  border-color: var(--color-line);
+}
+
+html,
+body {
+  background: var(--color-ink);
+  color: #ededed;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: var(--color-nonstop);
+  color: #fff;
+}
+
+/* Brand display type — condensed, uppercase, used for headings only */
+.font-display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: -0.005em;
+}
+
+/* tabular figures for any metric/number so columns align like real software */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Brand crosshead — Neue Haas/Inter bold, all caps, open tracking.
+   Used for small section labels (the guide's "CROSSHEADS"). */
+.crosshead {
+  font-family: var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+}
+
+/* Thin scrollbars on dense panels */
+.scroll-thin::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-line-2);
+  border: 3px solid var(--color-ink);
+}
+.scroll-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
