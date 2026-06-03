@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { useStore } from "@/lib/store";
+import { useStore, type AdminRow } from "@/lib/store";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
 import {
   Camera,
@@ -14,6 +14,9 @@ import {
   Check,
   Sun,
   Moon,
+  UserPlus,
+  Crown,
+  X,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -181,6 +184,9 @@ function Settings() {
         </div>
       </Section>
 
+      {/* Team Admins — owners only */}
+      <TeamAdmins />
+
       {/* Security */}
       <Section title="Security" subtitle="Password and account access.">
         <div className="grid gap-4 sm:grid-cols-3">
@@ -260,6 +266,117 @@ function Settings() {
         </div>
       </Section>
     </div>
+  );
+}
+
+/** Owner-only: grant/revoke sub-admins. Sub-admins never see this section. */
+function TeamAdmins() {
+  const { isOwner, email, listAdmins, addAdmin, removeAdmin } = useStore();
+  const [rows, setRows] = useState<AdminRow[]>([]);
+  const [input, setInput] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setRows(await listAdmins());
+  }, [listAdmins]);
+
+  useEffect(() => {
+    if (isOwner) refresh();
+  }, [isOwner, refresh]);
+
+  if (!isOwner) return null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    setMsg(null);
+    setBusy(true);
+    const res = await addAdmin(input);
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    setMsg(`${input.trim().toLowerCase()} now has admin access.`);
+    setInput("");
+    refresh();
+  };
+
+  const remove = async (em: string) => {
+    setErr(null);
+    setMsg(null);
+    const res = await removeAdmin(em);
+    if (!res.ok) return setErr(res.error);
+    refresh();
+  };
+
+  const owners = rows.filter((r) => r.role === "owner");
+  const subs = rows.filter((r) => r.role === "admin");
+
+  return (
+    <Section
+      title="Team Admins"
+      subtitle="Grant admin access to teammates. Sub-admins get the full admin tools but can't add or remove other admins."
+    >
+      <form onSubmit={submit} className="flex flex-wrap items-center gap-2">
+        <input
+          type="email"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="teammate@email.com"
+          className={`${inputCls} max-w-xs flex-1`}
+        />
+        <button
+          type="submit"
+          disabled={busy || !input.trim()}
+          className="inline-flex items-center gap-1.5 bg-nonstop px-4 py-2 text-sm font-semibold text-white transition hover:bg-nonstop-dark disabled:opacity-50"
+        >
+          <UserPlus className="h-4 w-4" /> Add sub-admin
+        </button>
+      </form>
+      {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+      {msg && <p className="mt-2 text-xs text-green-400">{msg}</p>}
+
+      <div className="mt-5 space-y-2">
+        {subs.length === 0 && (
+          <p className="text-xs text-muted-2">No sub-admins yet.</p>
+        )}
+        {subs.map((a) => (
+          <div
+            key={a.email}
+            className="flex items-center gap-3 border border-line bg-surface-2 px-3 py-2.5"
+          >
+            <Shield className="h-4 w-4 shrink-0 text-zinc-300" />
+            <span className="min-w-0 flex-1 truncate text-sm text-white">
+              {a.email}
+            </span>
+            <span className="text-[11px] uppercase tracking-wide text-muted-2">
+              Sub-admin
+            </span>
+            <button
+              onClick={() => remove(a.email)}
+              title="Remove admin access"
+              className="text-muted-2 transition hover:text-red-400"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+        {owners.map((a) => (
+          <div
+            key={a.email}
+            className="flex items-center gap-3 border border-line bg-surface-2 px-3 py-2.5"
+          >
+            <Crown className="h-4 w-4 shrink-0 text-nonstop" />
+            <span className="min-w-0 flex-1 truncate text-sm text-white">
+              {a.email}
+            </span>
+            <span className="text-[11px] uppercase tracking-wide text-nonstop">
+              Owner{a.email === email?.toLowerCase() ? " · you" : ""}
+            </span>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 

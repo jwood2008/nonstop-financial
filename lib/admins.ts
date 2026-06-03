@@ -9,10 +9,14 @@
  * You can also flip roles live from the floating Role Switcher in the bottom-
  * right corner of any in-app page.
  */
+// Bootstrap OWNERS — top-tier admins who can add/remove sub-admins. Source of
+// truth when Supabase isn't configured, and the seed for the app_admins table
+// (supabase/admins.sql). Sub-admins added at runtime live in Supabase, not here.
 export const ADMIN_EMAILS: string[] = [
   "greg@lecgroup.com",
   "jay@nonstopfinancial.com",
   "admin@nonstopfinancial.com",
+  "jameslwood589@gmail.com",
 ];
 
 /** The identity used by the fake "click to login" flow. */

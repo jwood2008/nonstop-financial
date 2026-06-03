@@ -22,3 +22,21 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
       },
     })
   : null;
+
+/**
+ * Record an analytics event. No-op unless Supabase is configured and the user
+ * is signed in (RLS requires a session); failures are swallowed so tracking
+ * never blocks a user action.
+ */
+export async function track(type: string, ref?: string, amount?: number) {
+  if (!isSupabaseConfigured || !supabase) return;
+  try {
+    await supabase.from("events").insert({
+      type,
+      ref: ref ?? null,
+      amount: amount ?? null,
+    });
+  } catch {
+    /* ignore — analytics is best-effort */
+  }
+}

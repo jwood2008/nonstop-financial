@@ -106,6 +106,17 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   font-feature-settings: "cv11", "ss01";
+  /* dark-themed native controls (date pickers, scrollbars). html.light flips it. */
+  color-scheme: dark;
+}
+
+/* Brighten the date-input calendar icon so it's clearly visible on dark UI. */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 ::selection {

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ExpandablePanel } from "@/components/ui/expandable-card";
-import { useStore } from "@/lib/store";
+import { useStore, allLessons } from "@/lib/store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   Sparkline,
@@ -31,7 +31,10 @@ import {
   Shield,
   ArrowUpRight,
   ArrowDownRight,
+  FileDown,
+  Share2,
 } from "lucide-react";
+import { exportReportPdf, exportReportImage, type ReportData } from "@/lib/report";
 
 export default function AdminPage() {
   return (
@@ -41,8 +44,183 @@ export default function AdminPage() {
   );
 }
 
+/* ── date range ── */
+type Range = { from: string; to: string; label: string };
+
+function iso(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function daysAgo(n: number) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+}
+const PRESETS: { id: string; label: string; make: () => Range }[] = [
+  { id: "7d", label: "7d", make: () => ({ from: iso(daysAgo(6)), to: iso(new Date()), label: "Last 7 days" }) },
+  { id: "30d", label: "30d", make: () => ({ from: iso(daysAgo(29)), to: iso(new Date()), label: "Last 30 days" }) },
+  { id: "90d", label: "90d", make: () => ({ from: iso(daysAgo(89)), to: iso(new Date()), label: "Last 90 days" }) },
+  { id: "all", label: "All", make: () => ({ from: "1970-01-01", to: iso(new Date()), label: "All time" }) },
+];
+function previousOf(r: Range): { from: string; to: string } {
+  const from = new Date(`${r.from}T00:00:00`);
+  const to = new Date(`${r.to}T00:00:00`);
+  const len = Math.round((+to - +from) / 86400000) + 1;
+  const pTo = new Date(from);
+  pTo.setDate(pTo.getDate() - 1);
+  const pFrom = new Date(pTo);
+  pFrom.setDate(pFrom.getDate() - (len - 1));
+  return { from: iso(pFrom), to: iso(pTo) };
+}
+
+type TopRow = {
+  title: string;
+  views: number;
+  completion: number;
+  avgWatch?: string;
+  trend?: number;
+};
+type KpiRow = {
+  key: string;
+  label: string;
+  value: number;
+  suffix: string;
+  delta: number;
+  series: number[];
+};
+const DOW_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
+
 function Analytics() {
-  const { role } = useStore();
+  const { role, course } = useStore();
+  const lessons = useMemo(() => allLessons(course), [course]);
+  const totalLessons = lessons.length;
+
+  const [presetId, setPresetId] = useState("30d");
+  const [range, setRange] = useState<Range>(PRESETS[1].make());
+
+  // With Supabase connected we show ONLY real data (empty until activity
+  // exists). Sample data is used solely in the no-backend preview.
+  const SAMPLE = !isSupabaseConfigured;
+  const [kpis, setKpis] = useState<typeof KPIS>(SAMPLE ? KPIS : []);
+  const [engagement, setEngagement] = useState<typeof ENGAGEMENT_14D>(
+    SAMPLE ? ENGAGEMENT_14D : []
+  );
+  const [heat, setHeat] = useState<number[][]>(
+    SAMPLE ? ACTIVE_HEATMAP : Array.from({ length: 7 }, () => Array(12).fill(0))
+  );
+  const [audience, setAudience] = useState<{ label: string; value: number }[]>(
+    SAMPLE ? AUDIENCE_BY_AGE : []
+  );
+  const [topContent, setTopContent] = useState<TopRow[]>(SAMPLE ? TOP_CONTENT : []);
+  const [leaders, setLeaders] = useState<typeof LEADERBOARD>(SAMPLE ? LEADERBOARD : []);
+  const [movement, setMovement] = useState<Record<string, number | null>>({});
+
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let cancelled = false;
+    const p = { p_from: range.from, p_to: range.to };
+    const prev = previousOf(range);
+
+    (async () => {
+      const [k, eng, hrs, age, top, lb, lbPrev] = await Promise.all([
+        supabase!.rpc("analytics_kpis", p),
+        supabase!.rpc("events_engagement", p),
+        supabase!.rpc("events_active_hours", p),
+        supabase!.rpc("age_distribution", p),
+        supabase!.rpc("top_content", p),
+        supabase!.rpc("leaderboard", p),
+        supabase!.rpc("leaderboard", { p_from: prev.from, p_to: prev.to }),
+      ]);
+      if (cancelled) return;
+
+      if (!k.error && k.data) {
+        setKpis(
+          (k.data as KpiRow[]).map((r) => ({
+            label: r.label,
+            value: r.suffix === "%" ? `${r.value}%` : Number(r.value).toLocaleString(),
+            delta: Number(r.delta),
+            series: (r.series ?? []).map(Number),
+          }))
+        );
+      }
+
+      if (!eng.error && eng.data) {
+        const rows = eng.data as { d: string; active: number; lessons: number }[];
+        setEngagement(
+          rows.map((r) => ({
+            day: DOW_LETTER[new Date(`${r.d}T00:00:00`).getDay()],
+            active: r.active,
+            lessons: r.lessons,
+          }))
+        );
+      }
+
+      if (!hrs.error && hrs.data) {
+        const rows = hrs.data as { dow: number; bucket: number; n: number }[];
+        const counts = Array.from({ length: 7 }, () => Array(12).fill(0));
+        let max = 0;
+        for (const r of rows) {
+          const row = (r.dow + 6) % 7;
+          counts[row][r.bucket] += r.n;
+          max = Math.max(max, counts[row][r.bucket]);
+        }
+        setHeat(
+          counts.map((row) =>
+            row.map((n) => (n === 0 || max === 0 ? 0 : Math.max(1, Math.round((n / max) * 4))))
+          )
+        );
+      }
+
+      if (!age.error && age.data) {
+        setAudience(age.data as { label: string; value: number }[]);
+      }
+
+      if (!top.error && top.data) {
+        const rows = top.data as { ref: string; views: number; completes: number }[];
+        setTopContent(
+          rows.map((r) => ({
+            title: lessons.find((l) => l.id === r.ref)?.title ?? "Untitled lesson",
+            views: r.views,
+            completion: r.views > 0 ? Math.round((r.completes / r.views) * 100) : 0,
+          }))
+        );
+      }
+
+      if (!lb.error && lb.data) {
+        const rows = lb.data as {
+          name: string;
+          completed: number;
+          passes: number;
+          active_days: number;
+        }[];
+        setLeaders(
+          rows.map((r) => ({
+            name: r.name,
+            streak: r.active_days,
+            certs: r.passes,
+            completion:
+              totalLessons > 0
+                ? Math.min(100, Math.round((r.completed / totalLessons) * 100))
+                : 0,
+          }))
+        );
+        const prevRank = new Map<string, number>();
+        (lbPrev.data as { name: string }[] | null)?.forEach((r, i) =>
+          prevRank.set(r.name, i)
+        );
+        const move: Record<string, number | null> = {};
+        rows.forEach((r, i) => {
+          move[r.name] = prevRank.has(r.name) ? prevRank.get(r.name)! - i : null;
+        });
+        setMovement(move);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [range, lessons, totalLessons]);
 
   if (role !== "admin") {
     return (
@@ -57,46 +235,107 @@ function Analytics() {
     );
   }
 
+  const choosePreset = (id: string) => {
+    setPresetId(id);
+    const p = PRESETS.find((x) => x.id === id);
+    if (p) setRange(p.make());
+  };
+  const setCustom = (patch: Partial<Range>) => {
+    setPresetId("custom");
+    setRange((r) => ({ ...r, ...patch, label: "Custom range" }));
+  };
+
+  const reportData = (): ReportData => ({
+    rangeLabel: range.label,
+    generatedOn: new Date().toLocaleDateString(),
+    kpis: kpis.slice(0, 4).map((k) => ({
+      label: k.label,
+      value: String(k.value),
+      delta: k.delta,
+    })),
+    leaders: leaders.slice(0, 8).map((l) => ({
+      name: l.name,
+      completion: l.completion,
+      streak: l.streak,
+      certs: l.certs,
+    })),
+  });
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
-      {/* header */}
       <PageHeader
-        label="Sample data"
+        label={isSupabaseConfigured ? "Live data" : "Sample data"}
         title="Analytics"
-        meta="Agency performance · last 30 days · NonStop Financial"
+        meta={`${range.label} · vs previous period · NonStop Financial`}
         actions={
-          <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1 text-xs">
-            {["7d", "30d", "90d", "All"].map((r, i) => (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1 text-xs">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => choosePreset(p.id)}
+                  className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+                    presetId === p.id
+                      ? "bg-nonstop text-white"
+                      : "text-white/50 hover:text-white"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-white/55">
+              <input
+                type="date"
+                value={range.from === "1970-01-01" ? "" : range.from}
+                max={range.to}
+                onChange={(e) => setCustom({ from: e.target.value })}
+                className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-white outline-none focus:border-nonstop"
+              />
+              <span>→</span>
+              <input
+                type="date"
+                value={range.to}
+                min={range.from === "1970-01-01" ? undefined : range.from}
+                onChange={(e) => setCustom({ to: e.target.value })}
+                className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1.5 text-white outline-none focus:border-nonstop"
+              />
+            </div>
+            <div className="flex items-center gap-1.5">
               <button
-                key={r}
-                className={`rounded-lg px-3 py-1.5 font-semibold transition ${
-                  i === 1
-                    ? "bg-nonstop text-white"
-                    : "text-white/50 hover:text-white"
-                }`}
+                onClick={() => exportReportPdf(reportData())}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/70 transition hover:text-white"
+                title="Download a PDF report for this range"
               >
-                {r}
+                <FileDown className="h-3.5 w-3.5" /> PDF
               </button>
-            ))}
+              <button
+                onClick={() => exportReportImage(reportData())}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-nonstop px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-nonstop-dark"
+                title="Shareable image for social posts"
+              >
+                <Share2 className="h-3.5 w-3.5" /> Share
+              </button>
+            </div>
           </div>
         }
       />
 
-      {/* top content — expands to full table */}
+      {/* top content */}
       <div className="mt-6">
         <ExpandablePanel
           label="Top Content"
           title="Top Content"
           tone="light"
-          preview={<TopContentTable limit={4} />}
+          preview={<TopContentTable rows={topContent} limit={4} />}
         >
-          <TopContentTable />
+          <TopContentTable rows={topContent} />
         </ExpandablePanel>
       </div>
 
-      {/* KPI tiles — each expands to a larger breakdown */}
+      {/* KPI tiles */}
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
-        {KPIS.map((k) => (
+        {kpis.map((k) => (
           <ExpandablePanel
             key={k.label}
             label={k.label}
@@ -109,19 +348,18 @@ function Analytics() {
         ))}
       </div>
 
-      {/* engagement + retention — expandable feature cards */}
+      {/* engagement + retention */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ExpandablePanel
             label="Engagement"
             title="Engagement"
             tone="light"
-            preview={<EngagementWidget />}
+            preview={<EngagementWidget data={engagement} />}
           >
-            <EngagementWidget />
+            <EngagementWidget data={engagement} />
           </ExpandablePanel>
         </div>
-
         <ExpandablePanel
           label="Audience Retention"
           title="Audience Retention"
@@ -132,7 +370,7 @@ function Analytics() {
         </ExpandablePanel>
       </div>
 
-      {/* expandable widget row — click any to grow it */}
+      {/* funnel + audience + heatmap */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <ExpandablePanel
           label="Producer Funnel"
@@ -142,42 +380,48 @@ function Analytics() {
         >
           <FunnelWidget />
         </ExpandablePanel>
-
         <ExpandablePanel
           label="Audience by Age"
           title="Audience by Age"
           tone="light"
-          preview={<AudienceWidget />}
+          preview={<AudienceWidget data={audience} />}
         >
-          <AudienceWidget />
+          <AudienceWidget data={audience} />
         </ExpandablePanel>
-
         <ExpandablePanel
           label="Most Active Hours"
           title="Most Active Hours"
           tone="light"
-          preview={<HeatmapWidget />}
+          preview={<HeatmapWidget grid={heat} />}
         >
-          <HeatmapWidget />
+          <HeatmapWidget grid={heat} />
         </ExpandablePanel>
       </div>
 
-      {/* leaderboard — expands to full team */}
+      {/* leaderboard */}
       <div className="mt-6">
         <ExpandablePanel
           label="Team Leaderboard"
           title="Team Leaderboard"
           tone="light"
-          preview={<LeaderboardList limit={5} />}
+          preview={<LeaderboardList rows={leaders} movement={movement} limit={5} />}
         >
-          <LeaderboardList />
+          <LeaderboardList rows={leaders} movement={movement} />
         </ExpandablePanel>
       </div>
     </div>
   );
 }
 
-/* ── widget bodies (shared by collapsed preview + expanded view) ── */
+/* ── widget bodies ── */
+
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="flex h-40 items-center justify-center px-4 text-center text-xs text-white/35">
+      {label}
+    </div>
+  );
+}
 
 function KpiWidget({
   kpi,
@@ -217,7 +461,7 @@ function KpiWidget({
         <Sparkline data={kpi.series} color="#9ca3af" />
       </div>
 
-      {expanded && (
+      {expanded && kpi.series.length <= 10 && (
         <div className="mt-6 grid grid-cols-7 gap-1.5 text-center">
           {kpi.series.map((v, i) => {
             const last = i === kpi.series.length - 1;
@@ -245,13 +489,12 @@ function KpiWidget({
   );
 }
 
-function EngagementWidget() {
+function EngagementWidget({ data }: { data: typeof ENGAGEMENT_14D }) {
+  const empty = data.length === 0 || data.every((d) => d.active + d.lessons === 0);
   return (
     <>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-xs text-white/45">
-          Active agents vs lesson views · 14 days
-        </p>
+        <p className="text-xs text-white/45">Active agents vs lessons completed</p>
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1.5 text-white/55">
             <span
@@ -265,20 +508,28 @@ function EngagementWidget() {
               className="h-2.5 w-2.5 rounded-sm"
               style={{ background: "var(--color-line-2)" }}
             />{" "}
-            Lesson views
+            Lessons done
           </span>
         </div>
       </div>
-      <BarChart data={ENGAGEMENT_14D} />
+      {empty ? <EmptyState label="No activity in this range yet." /> : <BarChart data={data} />}
     </>
   );
 }
 
 function RetentionWidget() {
+  if (isSupabaseConfigured) {
+    return (
+      <>
+        <p className="text-xs text-white/45">Audience retention</p>
+        <EmptyState label="Not enough watch data yet." />
+      </>
+    );
+  }
   return (
     <>
       <p className="text-xs text-white/45">
-        Featured: “Advanced Objection Handling”
+        Featured: “Advanced Objection Handling” · sample data
       </p>
       <div className="mt-4">
         <AreaLine data={RETENTION_CURVE} />
@@ -292,61 +543,49 @@ function RetentionWidget() {
 }
 
 function FunnelWidget() {
+  if (isSupabaseConfigured) {
+    return (
+      <>
+        <p className="mb-3 text-xs text-white/45">Lead → certified producer</p>
+        <EmptyState label="Not enough funnel data yet." />
+      </>
+    );
+  }
   return (
     <>
-      <p className="mb-3 text-xs text-white/45">Lead → certified producer</p>
+      <p className="mb-3 text-xs text-white/45">Lead → certified producer · sample data</p>
       <Funnel data={FUNNEL} />
     </>
   );
 }
 
-function AudienceWidget() {
-  // Live age distribution from Supabase signups; falls back to the sample data
-  // until there are enough real accounts to populate it.
-  const [data, setData] = useState(AUDIENCE_BY_AGE);
-  const [live, setLive] = useState(false);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) return;
-    let cancelled = false;
-    (async () => {
-      const { data: rows, error } = await supabase!.rpc("age_distribution");
-      if (cancelled || error || !rows) return;
-      const total = (rows as { label: string; value: number }[]).reduce(
-        (s, r) => s + r.value,
-        0
-      );
-      if (total > 0) {
-        setData(rows as { label: string; value: number }[]);
-        setLive(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+function AudienceWidget({ data }: { data: { label: string; value: number }[] }) {
+  const empty = data.length === 0 || data.reduce((s, d) => s + d.value, 0) === 0;
   return (
     <>
-      <p className="mb-3 text-xs text-white/45">
-        Share of audience by age bracket{live ? "" : " · sample data"}
-      </p>
-      <Donut data={data} />
+      <p className="mb-3 text-xs text-white/45">Share of audience by age bracket</p>
+      {empty ? (
+        <EmptyState label="No signups in this range yet." />
+      ) : (
+        <Donut data={data} />
+      )}
     </>
   );
 }
 
-function HeatmapWidget() {
+function HeatmapWidget({ grid }: { grid: number[][] }) {
+  const empty = grid.every((row) => row.every((n) => n === 0));
   return (
     <>
       <p className="mb-3 text-xs text-white/45">When agents train</p>
-      <Heatmap grid={ACTIVE_HEATMAP} />
+      {empty ? <EmptyState label="No activity in this range yet." /> : <Heatmap grid={grid} />}
     </>
   );
 }
 
-function TopContentTable({ limit }: { limit?: number }) {
-  const rows = limit ? TOP_CONTENT.slice(0, limit) : TOP_CONTENT;
+function TopContentTable({ rows, limit }: { rows: TopRow[]; limit?: number }) {
+  const data = limit ? rows.slice(0, limit) : rows;
+  if (data.length === 0) return <EmptyState label="No lesson views yet." />;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -360,7 +599,7 @@ function TopContentTable({ limit }: { limit?: number }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {rows.map((c) => (
+          {data.map((c) => (
             <tr key={c.title} className="text-zinc-200">
               <td className="py-3 font-medium text-white">{c.title}</td>
               <td className="py-3">{c.views.toLocaleString()}</td>
@@ -375,20 +614,24 @@ function TopContentTable({ limit }: { limit?: number }) {
                   <span className="text-xs text-white/55">{c.completion}%</span>
                 </div>
               </td>
-              <td className="py-3 text-white/55">{c.avgWatch}</td>
+              <td className="py-3 text-white/55">{c.avgWatch ?? "—"}</td>
               <td className="py-3 text-right">
-                <span
-                  className={`inline-flex items-center gap-0.5 font-semibold ${
-                    c.trend >= 0 ? "text-green-400" : "text-red-400"
-                  }`}
-                >
-                  {c.trend >= 0 ? (
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  ) : (
-                    <ArrowDownRight className="h-3.5 w-3.5" />
-                  )}
-                  {Math.abs(c.trend)}%
-                </span>
+                {c.trend === undefined ? (
+                  <span className="text-white/30">—</span>
+                ) : (
+                  <span
+                    className={`inline-flex items-center gap-0.5 font-semibold ${
+                      c.trend >= 0 ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    {c.trend >= 0 ? (
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowDownRight className="h-3.5 w-3.5" />
+                    )}
+                    {Math.abs(c.trend)}%
+                  </span>
+                )}
               </td>
             </tr>
           ))}
@@ -398,35 +641,63 @@ function TopContentTable({ limit }: { limit?: number }) {
   );
 }
 
-function LeaderboardList({ limit }: { limit?: number }) {
-  const rows = limit ? LEADERBOARD.slice(0, limit) : LEADERBOARD;
+function LeaderboardList({
+  rows,
+  movement,
+  limit,
+}: {
+  rows: typeof LEADERBOARD;
+  movement?: Record<string, number | null>;
+  limit?: number;
+}) {
+  const data = limit ? rows.slice(0, limit) : rows;
+  if (data.length === 0)
+    return <EmptyState label="No completed lessons yet." />;
   return (
     <ul className="space-y-2">
-      {rows.map((a, i) => (
-        <li
-          key={a.name}
-          className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
-        >
-          <span
-            className={`flex h-8 w-8 items-center justify-center rounded-lg font-display text-sm font-bold ${
-              i === 0 ? "bg-nonstop text-white" : "bg-white/10 text-white/50"
-            }`}
+      {data.map((a, i) => {
+        const mv = movement?.[a.name];
+        return (
+          <li
+            key={a.name}
+            className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
           >
-            {i + 1}
-          </span>
-          <span className="flex-1 font-medium text-white">{a.name}</span>
-          <span className="flex items-center gap-1.5 text-sm text-white/55">
-            <Flame className="h-4 w-4 text-zinc-300" />
-            {a.streak}d
-          </span>
-          <span className="w-16 text-right text-sm text-white/55">
-            {a.certs} certs
-          </span>
-          <span className="w-14 text-right font-bold text-white">
-            {a.completion}%
-          </span>
-        </li>
-      ))}
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-lg font-display text-sm font-bold ${
+                i === 0 ? "bg-nonstop text-white" : "bg-white/10 text-white/50"
+              }`}
+            >
+              {i + 1}
+            </span>
+            {movement && (
+              <span className="w-9 shrink-0 text-[11px] font-semibold">
+                {mv === null || mv === undefined ? (
+                  <span className="text-nonstop">NEW</span>
+                ) : mv > 0 ? (
+                  <span className="text-green-400">▲{mv}</span>
+                ) : mv < 0 ? (
+                  <span className="text-red-400">▼{Math.abs(mv)}</span>
+                ) : (
+                  <span className="text-white/30">—</span>
+                )}
+              </span>
+            )}
+            <span className="min-w-0 flex-1 truncate font-medium text-white">
+              {a.name}
+            </span>
+            <span className="flex items-center gap-1.5 text-sm text-white/55">
+              <Flame className="h-4 w-4 text-zinc-300" />
+              {a.streak}d
+            </span>
+            <span className="w-16 text-right text-sm text-white/55">
+              {a.certs} certs
+            </span>
+            <span className="w-14 text-right font-bold text-white">
+              {a.completion}%
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }

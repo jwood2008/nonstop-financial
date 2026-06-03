@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { AppShell } from "@/components/AppShell";
 import { useStore, allLessons } from "@/lib/store";
+import { track } from "@/lib/supabase";
 import { ContentBlockView } from "@/components/ContentBlockView";
 import { FilesTab } from "@/components/FilesTab";
 import { AICoachTab } from "@/components/AICoachTab";
@@ -138,6 +139,11 @@ function Learn() {
     () => lessons.find((l) => l.id === activeId) ?? lessons[0],
     [lessons, activeId]
   );
+
+  // record a lesson view for analytics whenever the open lesson changes
+  useEffect(() => {
+    if (active?.id) track("lesson_view", active.id);
+  }, [active?.id]);
 
   const addTypes: { t: BlockType; label: string; icon: typeof Play }[] = [
     { t: "video", label: "Video", icon: Play },

@@ -7,7 +7,8 @@ import { ExpandablePanel } from "@/components/ui/expandable-card";
 import { Gallery4 } from "@/components/ui/gallery4";
 import { useStore, allLessons } from "@/lib/store";
 import { LEADERBOARD } from "@/lib/data";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { certificateDataUrl, downloadCertificatePdf } from "@/lib/certificate";
+import { ArrowRight, ArrowUpRight, Award, Download } from "lucide-react";
 
 const MODULE_IMAGES = [
   "https://images.unsplash.com/photo-1551250928-243dc937c49d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
@@ -32,6 +33,66 @@ const SPOTLIGHT = [
   { id: "closing", title: "Closing with Confidence", description: "Turn a great presentation into a signed application.", href: "/learn", image: MODULE_IMAGES[2] },
   { id: "recruiting", title: "Recruiting Elite Producers", description: "Multiply your impact by building a team.", href: "/learn", image: MODULE_IMAGES[3] },
 ];
+
+/* ── completion certificate ── */
+function CourseCertificate({ done, total }: { done: number; total: number }) {
+  const { course, profile, email } = useStore();
+  const complete = total > 0 && done === total;
+
+  const name = (profile.name || email?.split("@")[0] || "Producer").replace(
+    /\b\w/g,
+    (c) => c.toUpperCase()
+  );
+  const first = name.split(" ")[0];
+  const courseTitle = course.title || "Producer Development Path";
+  const date = new Date().toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const data = { name, course: courseTitle, date };
+
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (complete) setUrl(certificateDataUrl(data));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complete, name, courseTitle, date]);
+
+  if (!complete) return null;
+
+  return (
+    <section className="mb-6 overflow-hidden rounded-3xl border border-nonstop/40 bg-[#33343a] p-6 shadow-lg shadow-black/30 sm:p-9">
+      <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 text-center">
+        <span className="inline-flex items-center gap-2 rounded-full border border-nonstop/40 bg-nonstop/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-nonstop">
+          <Award className="h-3.5 w-3.5" /> Course complete
+        </span>
+        <h2 className="font-display text-3xl font-bold text-white md:text-4xl">
+          Congratulations, {first}! 🎉
+        </h2>
+        <p className="max-w-md text-sm leading-relaxed text-white/55">
+          You&apos;ve completed the {courseTitle}. Your certificate is ready —
+          download it below.
+        </p>
+
+        {url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={url}
+            alt="Certificate of completion"
+            className="w-full max-w-xl rounded-xl border border-white/10 shadow-2xl shadow-black/50"
+          />
+        )}
+
+        <button
+          onClick={() => downloadCertificatePdf(data)}
+          className="group inline-flex items-center gap-2 rounded-full bg-nonstop px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-nonstop-dark"
+        >
+          <Download className="h-4 w-4" /> Download certificate (PDF)
+        </button>
+      </div>
+    </section>
+  );
+}
 
 function DualRing({ className = "" }: { className?: string }) {
   return (
@@ -82,6 +143,9 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 lg:px-8">
+      {/* ── certificate (shown when the whole course is complete) ── */}
+      <CourseCertificate done={done} total={total} />
+
       {/* ── Introduction hero (top) ── */}
       <IntroHero next={next} progress={progress} done={done} total={total} />
 

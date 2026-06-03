@@ -20,7 +20,7 @@ import type { Persona } from "./personas";
 import { SEED_COURSE } from "./data";
 import { SEED_PERSONAS } from "./personas";
 import { DEMO_EMAIL, isAdminEmail } from "./admins";
-import { supabase, isSupabaseConfigured } from "./supabase";
+import { supabase, isSupabaseConfigured, track } from "./supabase";
 
 const LS_ROLE = "nf.role";
 const LS_EMAIL = "nf.email";
@@ -46,6 +46,14 @@ type Account = {
 type AuthResult =
   | { ok: true; needsConfirmation?: boolean }
   | { ok: false; error: string };
+
+type AdminStatus = "owner" | "admin" | null;
+export type AdminRow = {
+  email: string;
+  role: "owner" | "admin";
+  added_by: string | null;
+  created_at: string;
+};
 
 const DEFAULT_PROFILE = { name: "", avatar: "", phone: "", title: "", age: 0 };
 
@@ -77,6 +85,13 @@ interface Store {
   role: Role;
   setRole: (r: Role) => void;
   canBeAdmin: boolean;
+
+  // admin tiers: owners can manage sub-admins; sub-admins can't
+  adminStatus: AdminStatus;
+  isOwner: boolean;
+  listAdmins: () => Promise<AdminRow[]>;
+  addAdmin: (email: string) => Promise<AuthResult>;
+  removeAdmin: (email: string) => Promise<AuthResult>;
 
   // appearance
   theme: Theme;
@@ -164,6 +179,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [theme, setThemeState] = useState<Theme>("dark");
   const [accounts, setAccounts] = useState<Record<string, Account>>({});
+  const [adminStatus, setAdminStatus] = useState<AdminStatus>(null);
 
   // pull a logged-in user's profile row from Supabase into local state
   const loadProfile = async (uid: string) => {
@@ -277,7 +293,52 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (ready) window.localStorage.setItem(LS_DONE, JSON.stringify([...completed]));
   }, [completed, ready]);
 
-  const canBeAdmin = isAdminEmail(email);
+  // Admin tier: optimistic from the bootstrap owner list, then refined by
+  // Supabase (which also knows runtime-added sub-admins).
+  useEffect(() => {
+    if (!email) {
+      setAdminStatus(null);
+      return;
+    }
+    const seed: AdminStatus = isAdminEmail(email) ? "owner" : null;
+    setAdminStatus(seed);
+    if (isSupabaseConfigured && supabase) {
+      supabase
+        .rpc("my_admin_status")
+        .then(({ data, error }) => {
+          if (!error) setAdminStatus(((data as AdminStatus) ?? seed) || null);
+        });
+    }
+  }, [email]);
+
+  const canBeAdmin = adminStatus !== null;
+  const isOwner = adminStatus === "owner";
+
+  const listAdmins = async (): Promise<AdminRow[]> => {
+    if (!isSupabaseConfigured || !supabase) return [];
+    const { data, error } = await supabase.rpc("list_admins");
+    return error || !data ? [] : (data as AdminRow[]);
+  };
+  const addAdmin = async (em: string): Promise<AuthResult> => {
+    if (!isSupabaseConfigured || !supabase)
+      return { ok: false, error: "Connect Supabase to manage admins." };
+    const { data, error } = await supabase.rpc("add_admin", { p_email: em });
+    if (error) return { ok: false, error: error.message };
+    if (data === "forbidden")
+      return { ok: false, error: "Only owners can add admins." };
+    if (data === "invalid")
+      return { ok: false, error: "Enter a valid email address." };
+    return { ok: true };
+  };
+  const removeAdmin = async (em: string): Promise<AuthResult> => {
+    if (!isSupabaseConfigured || !supabase)
+      return { ok: false, error: "Connect Supabase to manage admins." };
+    const { data, error } = await supabase.rpc("remove_admin", { p_email: em });
+    if (error) return { ok: false, error: error.message };
+    if (data === "forbidden")
+      return { ok: false, error: "Only owners can remove admins." };
+    return { ok: true };
+  };
 
   // reflect the theme onto <html> so CSS (html.light / html.dark) can switch
   useEffect(() => {
@@ -437,6 +498,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       role,
       setRole,
       canBeAdmin,
+      adminStatus,
+      isOwner,
+      listAdmins,
+      addAdmin,
+      removeAdmin,
       theme,
       setTheme,
       profile,
@@ -535,11 +601,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
 
       quizResults,
-      addQuizResult: (blockId, attempt) =>
+      addQuizResult: (blockId, attempt) => {
+        void track("quiz_attempt", blockId, attempt.percent);
         setQuizResults((prev) => ({
           ...prev,
           [blockId]: [...(prev[blockId] ?? []), attempt],
-        })),
+        }));
+      },
 
       personas,
       addPersona: (p) => setPersonas((prev) => [...prev, p]),
@@ -558,12 +626,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       toggleComplete: (lessonId) =>
         setCompleted((prev) => {
           const next = new Set(prev);
-          next.has(lessonId) ? next.delete(lessonId) : next.add(lessonId);
+          if (next.has(lessonId)) {
+            next.delete(lessonId);
+          } else {
+            next.add(lessonId);
+            void track("lesson_complete", lessonId);
+          }
           return next;
         }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, theme, profile, accounts, course, personas, quizResults, notes, completed]
+    [ready, email, role, canBeAdmin, adminStatus, theme, profile, accounts, course, personas, quizResults, notes, completed]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
