@@ -18,12 +18,14 @@ alter table public.app_admins enable row level security;
 -- No direct table access — everything goes through the SECURITY DEFINER
 -- functions below (so only owners can mutate the list).
 
+-- Remove any previously-seeded owner that shouldn't be one (re-run safe).
+delete from public.app_admins where email = 'jameslwood589@gmail.com';
+
 -- Seed the bootstrap owners (keep in sync with lib/admins.ts).
 insert into public.app_admins (email, role) values
   ('greg@lecgroup.com', 'owner'),
   ('jay@nonstopfinancial.com', 'owner'),
-  ('admin@nonstopfinancial.com', 'owner'),
-  ('jameslwood589@gmail.com', 'owner')
+  ('admin@nonstopfinancial.com', 'owner')
 on conflict (email) do update set role = 'owner';
 
 -- The caller's tier: 'owner' | 'admin' | null

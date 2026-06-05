@@ -16,7 +16,6 @@ export const ADMIN_EMAILS: string[] = [
   "greg@lecgroup.com",
   "jay@nonstopfinancial.com",
   "admin@nonstopfinancial.com",
-  "jameslwood589@gmail.com",
 ];
 
 /** The identity used by the fake "click to login" flow. */

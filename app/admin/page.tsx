@@ -93,7 +93,7 @@ type KpiRow = {
 const DOW_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 
 function Analytics() {
-  const { role, course } = useStore();
+  const { canBeAdmin, course } = useStore();
   const lessons = useMemo(() => allLessons(course), [course]);
   const totalLessons = lessons.length;
 
@@ -222,14 +222,14 @@ function Analytics() {
     };
   }, [range, lessons, totalLessons]);
 
-  if (role !== "admin") {
+  if (!canBeAdmin) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-24 text-center">
         <Shield className="h-10 w-10 text-zinc-300" />
         <h1 className="font-display text-2xl font-bold text-white">Admin only</h1>
         <p className="text-sm text-muted">
-          Switch to <span className="font-semibold text-zinc-300">Admin</span> using the
-          toggle in the bottom-right to view analytics.
+          Analytics is available to admins. Ask an owner to grant you access in
+          Settings → Team Admins.
         </p>
       </div>
     );

@@ -93,6 +93,11 @@ interface Store {
   addAdmin: (email: string) => Promise<AuthResult>;
   removeAdmin: (email: string) => Promise<AuthResult>;
 
+  // one-time purchase / access
+  hasPaid: boolean;
+  paidReady: boolean;
+  refreshPaid: () => Promise<void>;
+
   // appearance
   theme: Theme;
   setTheme: (t: Theme) => void;
@@ -180,6 +185,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("dark");
   const [accounts, setAccounts] = useState<Record<string, Account>>({});
   const [adminStatus, setAdminStatus] = useState<AdminStatus>(null);
+  const [hasPaid, setHasPaid] = useState(false);
+  const [paidReady, setPaidReady] = useState(false); // has the paid check resolved?
 
   // pull a logged-in user's profile row from Supabase into local state
   const loadProfile = async (uid: string) => {
@@ -313,6 +320,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const canBeAdmin = adminStatus !== null;
   const isOwner = adminStatus === "owner";
+
+  // Admin view is automatic: assigned admins are always in "admin" role, no
+  // manual toggle. Everyone else is a regular agent.
+  useEffect(() => {
+    setRoleState(canBeAdmin ? "admin" : "user");
+  }, [canBeAdmin]);
+
+  const refreshPaid = async () => {
+    if (!email || !isSupabaseConfigured || !supabase) {
+      setHasPaid(false);
+      setPaidReady(true);
+      return;
+    }
+    const { data, error } = await supabase.rpc("has_purchased");
+    if (!error) setHasPaid(Boolean(data));
+    setPaidReady(true);
+  };
+  useEffect(() => {
+    setPaidReady(false);
+    void refreshPaid();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
 
   const listAdmins = async (): Promise<AdminRow[]> => {
     if (!isSupabaseConfigured || !supabase) return [];
@@ -503,6 +532,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       listAdmins,
       addAdmin,
       removeAdmin,
+      hasPaid,
+      paidReady,
+      refreshPaid,
       theme,
       setTheme,
       profile,
@@ -636,7 +668,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, adminStatus, theme, profile, accounts, course, personas, quizResults, notes, completed]
+    [ready, email, role, canBeAdmin, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, personas, quizResults, notes, completed]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

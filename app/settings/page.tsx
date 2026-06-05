@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { useStore, type AdminRow } from "@/lib/store";
@@ -17,6 +18,7 @@ import {
   UserPlus,
   Crown,
   X,
+  BadgeCheck,
 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -28,7 +30,7 @@ export default function SettingsPage() {
 }
 
 function Settings() {
-  const { email, role, profile, updateProfile, logout, theme, setTheme } =
+  const { email, role, profile, updateProfile, logout, theme, setTheme, hasPaid } =
     useStore();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -184,6 +186,31 @@ function Settings() {
         </div>
       </Section>
 
+      {/* Billing */}
+      <Section title="Billing" subtitle="Your access plan.">
+        {hasPaid ? (
+          <div className="flex items-center gap-2.5">
+            <BadgeCheck className="h-5 w-5 text-nonstop" />
+            <p className="text-sm text-white">
+              Producer Access —{" "}
+              <span className="font-semibold text-nonstop">active</span> · lifetime
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted">
+              You don&apos;t have full Producer Access yet.
+            </p>
+            <Link
+              href="/upgrade"
+              className="inline-flex items-center gap-1.5 bg-nonstop px-4 py-2 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
+            >
+              Unlock access
+            </Link>
+          </div>
+        )}
+      </Section>
+
       {/* Team Admins — owners only */}
       <TeamAdmins />
 
@@ -225,8 +252,8 @@ function Settings() {
                 </span>
               </p>
               <p className="text-xs text-muted-2">
-                Admins are assigned in lib/admins.ts. Switch views from the top
-                bar.
+                Admin access is granted by an owner in Team Admins. Admins see
+                the Analytics tab automatically.
               </p>
             </div>
           </div>

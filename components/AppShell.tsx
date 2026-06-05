@@ -14,15 +14,22 @@ import { LogOut, Menu, X, Settings } from "lucide-react";
  * dropdown.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { ready, loggedIn, logout, role, setRole, canBeAdmin, email, profile } =
+  const { ready, loggedIn, logout, canBeAdmin, email, profile, hasPaid, paidReady } =
     useStore();
   const pathname = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
 
+  // Paywall is off for now (Stripe is wired but not enforced). Flip to true to
+  // confine unpaid, non-admin users to /upgrade. Admins always bypass.
+  const PAYWALL_ENABLED = false;
+  const locked = PAYWALL_ENABLED && paidReady && !hasPaid && !canBeAdmin;
+
   useEffect(() => {
     if (ready && !loggedIn) router.replace("/");
-  }, [ready, loggedIn, router]);
+    else if (ready && loggedIn && locked && pathname !== "/upgrade")
+      router.replace("/upgrade");
+  }, [ready, loggedIn, locked, pathname, router]);
   useEffect(() => setMenu(false), [pathname]);
 
   if (!ready || !loggedIn) {
@@ -33,36 +40,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Assigned admins automatically see Analytics — no manual role toggle.
   const nav = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/learn", label: "Training" },
     { href: "/practice", label: "Practice" },
-    ...(role === "admin" ? [{ href: "/admin", label: "Analytics" }] : []),
+    ...(canBeAdmin ? [{ href: "/admin", label: "Analytics" }] : []),
   ];
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-
-  const RoleSwitch = (
-    <div className="flex items-center border border-line p-0.5">
-      <button
-        onClick={() => setRole("user")}
-        className={`px-2.5 py-1 text-xs font-medium transition ${
-          role === "user" ? "bg-surface-3 text-white" : "text-muted-2 hover:text-white"
-        }`}
-      >
-        Agent
-      </button>
-      <button
-        onClick={() => canBeAdmin && setRole("admin")}
-        disabled={!canBeAdmin}
-        title={canBeAdmin ? "" : "Not an admin (see lib/admins.ts)"}
-        className={`px-2.5 py-1 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
-          role === "admin" ? "bg-nonstop text-white" : "text-muted-2 hover:text-white"
-        }`}
-      >
-        Admin
-      </button>
-    </div>
-  );
 
   return (
     <div className="min-h-screen">
@@ -71,16 +56,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Logo />
 
           {/* primary nav — sliding-cursor pill (components/ui/nav-header) */}
-          <div className="mx-auto hidden md:block">
-            <NavHeader items={nav} />
-          </div>
+          {!locked && (
+            <div className="mx-auto hidden md:block">
+              <NavHeader items={nav} />
+            </div>
+          )}
 
           {/* right cluster */}
           <div className="ml-auto flex items-center gap-3">
-            <div className="hidden sm:block">{RoleSwitch}</div>
             <Link
               href="/settings"
-              className="hidden items-center gap-2 lg:flex"
+              className={`hidden items-center gap-2 lg:flex ${locked ? "pointer-events-none opacity-0" : ""}`}
               title="Account settings"
             >
               {profile.avatar ? (
@@ -99,15 +85,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {profile.name || email}
               </span>
             </Link>
-            <Link
-              href="/settings"
-              className={`hidden p-1.5 transition hover:text-white md:inline-flex ${
-                pathname.startsWith("/settings") ? "text-white" : "text-muted-2"
-              }`}
-              title="Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
+            {!locked && (
+              <Link
+                href="/settings"
+                className={`hidden p-1.5 transition hover:text-white md:inline-flex ${
+                  pathname.startsWith("/settings") ? "text-white" : "text-muted-2"
+                }`}
+                title="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
+            )}
             <button
               onClick={() => {
                 logout();
@@ -118,13 +106,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <LogOut className="h-4 w-4" />
             </button>
-            <button
-              onClick={() => setMenu((m) => !m)}
-              className="p-1.5 text-muted-2 transition hover:text-white md:hidden"
-              aria-label="Menu"
-            >
-              {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+            {!locked && (
+              <button
+                onClick={() => setMenu((m) => !m)}
+                className="p-1.5 text-muted-2 transition hover:text-white md:hidden"
+                aria-label="Menu"
+              >
+                {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
+            )}
           </div>
         </div>
 
@@ -156,8 +146,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Settings
               </Link>
             </nav>
-            <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
-              {RoleSwitch}
+            <div className="mt-3 flex items-center justify-end border-t border-line pt-3">
               <button
                 onClick={() => {
                   logout();
