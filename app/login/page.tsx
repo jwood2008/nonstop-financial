@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
+import { DEMO_MODE } from "@/lib/admins";
 import { ArrowRight, Loader2, MailCheck } from "lucide-react";
 import { AuthShell, AuthField, authInputCls } from "@/components/AuthShell";
 
@@ -23,6 +24,12 @@ export default function LoginPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Demo bypass: skip auth, enter as an admin (owner) for live walkthroughs.
+    if (DEMO_MODE) {
+      login();
+      router.push("/dashboard");
+      return;
+    }
     setError(null);
     setBusy(true);
     const res = await signIn(email, password);

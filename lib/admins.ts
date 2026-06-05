@@ -21,6 +21,13 @@ export const ADMIN_EMAILS: string[] = [
 /** The identity used by the fake "click to login" flow. */
 export const DEMO_EMAIL = "greg@lecgroup.com";
 
+/**
+ * DEMO BYPASS — TEMPORARY. When true, the "Log in" button skips real auth and
+ * drops straight into the app as an admin (owner) for live demos / call walk-
+ * throughs. Set back to false to restore the normal Supabase login.
+ */
+export const DEMO_MODE = true;
+
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   return ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(email.toLowerCase());
