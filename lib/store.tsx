@@ -81,6 +81,8 @@ interface Store {
   }) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   resendConfirmation: (email: string) => Promise<AuthResult>;
+  requestPasswordReset: (email: string) => Promise<AuthResult>;
+  updatePassword: (password: string) => Promise<AuthResult>;
 
   role: Role;
   setRole: (r: Role) => void;
@@ -241,7 +243,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       setReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // A password-reset link establishes a recovery session — send the user to
+      // the reset page wherever Supabase happens to land them.
+      if (
+        event === "PASSWORD_RECOVERY" &&
+        typeof window !== "undefined" &&
+        !window.location.pathname.startsWith("/reset-password")
+      ) {
+        window.location.replace("/reset-password");
+        return;
+      }
       const user = session?.user;
       if (user) {
         setEmail(user.email ?? null);
@@ -496,6 +508,37 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return { ok: true };
   };
 
+  const requestPasswordReset: Store["requestPasswordReset"] = async (em) => {
+    if (!isSupabaseConfigured || !supabase)
+      return { ok: false, error: "Password reset isn't available in preview mode." };
+    const key = em.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(key))
+      return { ok: false, error: "Enter a valid email address." };
+    const { error } = await supabase.auth.resetPasswordForEmail(key, {
+      redirectTo:
+        typeof window !== "undefined"
+          ? `${window.location.origin}/reset-password`
+          : undefined,
+    });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  };
+
+  const updatePassword: Store["updatePassword"] = async (password) => {
+    if (!isSupabaseConfigured || !supabase)
+      return { ok: false, error: "Not available in preview mode." };
+    if (password.length < 6)
+      return { ok: false, error: "Password must be at least 6 characters." };
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      const msg = /session|auth/i.test(error.message)
+        ? "Your reset link has expired. Request a new one."
+        : error.message;
+      return { ok: false, error: msg };
+    }
+    return { ok: true };
+  };
+
   // ---- course mutations ----
   const mutateLesson = (
     lessonId: string,
@@ -524,6 +567,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       resendConfirmation,
+      requestPasswordReset,
+      updatePassword,
       role,
       setRole,
       canBeAdmin,
