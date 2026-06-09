@@ -84,6 +84,7 @@ type TopRow = {
   avgWatch?: string;
   trend?: number;
 };
+type UserRow = { id: string; name: string; email: string; created_at: string };
 type KpiRow = {
   key: string;
   label: string;
@@ -117,6 +118,7 @@ function Analytics() {
   );
   const [topContent, setTopContent] = useState<TopRow[]>(SAMPLE ? TOP_CONTENT : []);
   const [leaders, setLeaders] = useState<typeof LEADERBOARD>(SAMPLE ? LEADERBOARD : []);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [movement, setMovement] = useState<Record<string, number | null>>({});
 
   useEffect(() => {
@@ -224,6 +226,28 @@ function Analytics() {
       cancelled = true;
     };
   }, [range, lessons, totalLessons]);
+
+  // load the full user list (name + email) — admin-only server route
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let cancelled = false;
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase!.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const res = await fetch("/api/admin/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const json = await res.json().catch(() => ({}));
+      if (!cancelled) setUsers((json.users as UserRow[]) ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!canBeAdmin) {
     return (
@@ -412,7 +436,53 @@ function Analytics() {
           <LeaderboardList rows={leaders} movement={movement} />
         </ExpandablePanel>
       </div>
+
+      {/* users */}
+      <div className="mt-6">
+        <ExpandablePanel
+          label="Users"
+          title={`Users · ${users.length}`}
+          tone="light"
+          preview={<UsersList rows={users} limit={6} />}
+        >
+          <UsersList rows={users} />
+        </ExpandablePanel>
+      </div>
     </div>
+  );
+}
+
+/* ── all signed-up users (name + email) ── */
+function UsersList({ rows, limit }: { rows: UserRow[]; limit?: number }) {
+  const data = limit ? rows.slice(0, limit) : rows;
+  if (data.length === 0)
+    return <EmptyState label="No users have signed up yet." />;
+  return (
+    <ul className="space-y-2">
+      {data.map((u) => {
+        const name = u.name?.trim() || "—";
+        const initial = (u.name?.trim() || u.email || "?").charAt(0).toUpperCase();
+        return (
+          <li
+            key={u.id}
+            className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 font-display text-sm font-bold text-white/60">
+              {initial}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-white">{name}</p>
+              <p className="truncate text-xs text-white/55">{u.email}</p>
+            </div>
+          </li>
+        );
+      })}
+      {limit && rows.length > limit && (
+        <li className="px-1 pt-1 text-xs text-white/40">
+          + {rows.length - limit} more — expand to see all
+        </li>
+      )}
+    </ul>
   );
 }
 
