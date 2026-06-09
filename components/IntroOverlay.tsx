@@ -63,26 +63,24 @@ export function IntroOverlay() {
         </span>
       </div>
 
-      {/* modern box */}
-      <div className="relative flex h-[230px] w-[min(90vw,560px)] items-center justify-center rounded-[28px] bg-white shadow-[0_30px_80px_-25px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06]">
-        {stage === "words" ? (
-          <GooeyText
-            texts={WORDS}
-            morphTime={1.1}
-            cooldownTime={1.1}
-            className="h-[120px] w-full"
-            textClassName="text-black font-display tracking-tight text-5xl sm:text-7xl"
-          />
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="/brand/logo-vertical-black.png"
-            alt="NonStop Financial"
-            className="h-28 w-auto sm:h-32"
-            style={{ animation: "introFade 600ms ease both" }}
-          />
-        )}
-      </div>
+      {/* words / logo, directly on the white page */}
+      {stage === "words" ? (
+        <GooeyText
+          texts={WORDS}
+          morphTime={1.1}
+          cooldownTime={1.1}
+          className="h-[140px] w-full"
+          textClassName="text-black font-display tracking-tight text-6xl sm:text-8xl"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/brand/logo-vertical-black.png"
+          alt="NonStop Financial"
+          className="h-32 w-auto sm:h-40"
+          style={{ animation: "introFade 600ms ease both" }}
+        />
+      )}
 
       <button
         onClick={lift}
