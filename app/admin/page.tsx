@@ -76,6 +76,8 @@ function previousOf(r: Range): { from: string; to: string } {
 }
 
 type TopRow = {
+  /** Unique lesson id from analytics — used as the row key. */
+  ref?: string;
   title: string;
   views: number;
   completion: number;
@@ -181,6 +183,7 @@ function Analytics() {
         const rows = top.data as { ref: string; views: number; completes: number }[];
         setTopContent(
           rows.map((r) => ({
+            ref: r.ref,
             title: lessons.find((l) => l.id === r.ref)?.title ?? "Untitled lesson",
             views: r.views,
             completion: r.views > 0 ? Math.round((r.completes / r.views) * 100) : 0,
@@ -599,8 +602,8 @@ function TopContentTable({ rows, limit }: { rows: TopRow[]; limit?: number }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
-          {data.map((c) => (
-            <tr key={c.title} className="text-zinc-200">
+          {data.map((c, i) => (
+            <tr key={c.ref ?? `${c.title}-${i}`} className="text-zinc-200">
               <td className="py-3 font-medium text-white">{c.title}</td>
               <td className="py-3">{c.views.toLocaleString()}</td>
               <td className="py-3">
