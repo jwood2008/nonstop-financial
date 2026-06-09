@@ -2,44 +2,33 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Logo, NonstopMark } from "@/components/Brand";
-import {
-  ArrowRight,
-  GraduationCap,
-  BadgeCheck,
-  Bot,
-  PhoneCall,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
-const CAPABILITIES = [
-  {
-    icon: GraduationCap,
-    title: "Structured training",
-    body: "Video-first modules from licensing to advanced production, organized into a single producer path.",
-  },
-  {
-    icon: BadgeCheck,
-    title: "Certification",
-    body: "Assessments with a configurable passing score (default 80%) and a tracked certification history.",
-  },
-  {
-    icon: Bot,
-    title: "AI coaching",
-    body: "Lesson summaries and quizzes generated from each video's transcript — grounded in your own content.",
-  },
-  {
-    icon: PhoneCall,
-    title: "Cold-call practice",
-    body: "Voice roleplay against unscripted prospects, scored on opener, rapport, technique, and outcome.",
-  },
-];
+/**
+ * Mentor photos that crossfade behind the hero. Drop more shots of Jay (and
+ * other mentors) into `public/hero/` and add their paths here — they cycle
+ * automatically. Each should read well on the right with text over the left.
+ *
+ *   const HERO_PHOTOS = ["/hero/jay-1.jpg", "/hero/jay-2.jpg", "/hero/jay-3.jpg"];
+ */
+const HERO_PHOTOS: string[] = ["/hero/jay-1.jpg"];
 
-const AUDIENCES = [
-  ["Agency owners", "Stand up training, monitor performance, and certify producers."],
-  ["Sales managers", "Assign curriculum, spot struggling agents, and drive accountability."],
-  ["Agents", "Onboard fast, build product knowledge, and practice before live calls."],
+const PILLARS = [
+  [
+    "For mentors",
+    "Build a legacy, multiply your performance, and certify the next generation of producers.",
+  ],
+  [
+    "For mentees",
+    "Get paired with a mentor, absorb the curriculum, and grow with real accountability.",
+  ],
+  [
+    "For the agency",
+    "Onboard fast, build deep product knowledge, and practice before every live call.",
+  ],
 ];
 
 export default function Landing() {
@@ -51,12 +40,24 @@ export default function Landing() {
   }, [ready, loggedIn, router]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-ink">
       {/* top bar */}
       <header className="border-b border-line">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <Logo />
-          <div className="flex items-center gap-3">
+          <nav className="flex items-center gap-1 sm:gap-3">
+            <a
+              href="#mentorship"
+              className="hidden px-3 py-1.5 text-sm font-medium text-muted transition hover:text-white sm:inline"
+            >
+              Mentorship
+            </a>
+            <a
+              href="#academy"
+              className="hidden px-3 py-1.5 text-sm font-medium text-muted transition hover:text-white sm:inline"
+            >
+              Academy
+            </a>
             <Link
               href="/login"
               className="px-3 py-1.5 text-sm font-medium text-muted transition hover:text-white"
@@ -65,97 +66,126 @@ export default function Landing() {
             </Link>
             <Link
               href="/signup"
-              className="border border-line-2 px-3 py-1.5 text-sm font-medium text-white transition hover:border-zinc-500"
+              className="bg-nonstop px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
             >
-              Sign up
+              Apply for Academy
             </Link>
-          </div>
+          </nav>
         </div>
       </header>
 
-      {/* hero — left-aligned, restrained */}
-      <section className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
+      {/* hero — cycling mentor photos as the background, text over the left */}
+      <section
+        id="mentorship"
+        className="relative isolate overflow-hidden border-b border-line"
+      >
+        <HeroSlideshow />
+        {/* scrims: dark on the left for legible text, soft fade up from bottom */}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/90 to-ink/20 lg:to-transparent" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/30 to-transparent" />
+
+        <div className="mx-auto max-w-6xl px-6 py-24 lg:py-36">
           <div className="max-w-xl">
-            <span className="inline-flex items-center gap-2 border border-line-2 px-2.5 py-1 text-[11px] font-medium uppercase tracking-widest text-muted">
+            <span className="inline-flex items-center gap-2 border border-line-2 bg-ink/40 px-2.5 py-1 text-[11px] font-medium uppercase tracking-widest text-muted backdrop-blur-sm">
               <NonstopMark className="h-3.5 w-4" />
-              NonStop Financial · Producer OS
+              NonStop Financial
             </span>
-            <h1 className="mt-5 font-display text-4xl font-bold leading-[1.02] text-white sm:text-5xl">
-              Build elite producers faster
+            <h1 className="mt-5 font-display text-5xl font-bold leading-[0.98] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-6xl">
+              Forging legacies.
+              <br />
+              Building elite
+              <br />
+              producers.
             </h1>
-            <p className="mt-4 text-base leading-relaxed text-muted">
-              The operating system insurance agencies use to onboard, train,
-              certify, and develop high-performing agents — training, coaching,
-              and performance in one place.
+            <p className="mt-5 max-w-md text-base leading-relaxed text-white/75">
+              The human-centered agency network. Invest in mentorship, hand down
+              expertise, and grow together.
             </p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
+            <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 href="/signup"
-                className="group inline-flex items-center gap-2 bg-nonstop px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
+                className="group inline-flex items-center gap-2 bg-nonstop px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
               >
-                Create your account
+                Sign up for mentorship
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
               <Link
                 href="/login"
-                className="text-xs text-muted-2 transition hover:text-white"
+                className="text-sm text-white/55 transition hover:text-white"
               >
-                Already have an account? Log in
+                Already part of the family?{" "}
+                <span className="font-semibold text-white underline-offset-4 hover:underline">
+                  Log in
+                </span>
               </Link>
             </div>
-          </div>
-
-          {/* capability list — dense, bordered, no oversized cards */}
-          <div className="divide-y divide-line border border-line">
-            {CAPABILITIES.map((c) => {
-              const Icon = c.icon;
-              return (
-                <div key={c.title} className="flex gap-3 p-4">
-                  <Icon
-                    className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400"
-                    strokeWidth={1.75}
-                  />
-                  <div>
-                    <div className="text-sm font-semibold text-white">
-                      {c.title}
-                    </div>
-                    <p className="mt-0.5 text-[13px] leading-snug text-muted">
-                      {c.body}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </section>
 
-      {/* who it's for */}
-      <section className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-2">
-            Built for the whole agency
-          </h2>
-          <div className="mt-5 grid gap-px border border-line bg-line sm:grid-cols-3">
-            {AUDIENCES.map(([role, desc]) => (
-              <div key={role} className="bg-ink p-5">
-                <div className="font-display text-base font-semibold text-white">
-                  {role}
-                </div>
-                <p className="mt-1.5 text-sm leading-snug text-muted">{desc}</p>
-              </div>
-            ))}
-          </div>
+      {/* pillars */}
+      <section id="academy" className="border-b border-line">
+        <div className="mx-auto grid max-w-6xl gap-px border-x border-line bg-line sm:grid-cols-3">
+          {PILLARS.map(([title, desc]) => (
+            <div key={title} className="bg-ink p-7">
+              <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-nonstop">
+                {title}
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
       <footer className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-6 py-8 text-xs text-muted-2 sm:flex-row sm:items-center">
         <span>© 2026 NonStop Financial. All rights reserved.</span>
-        <span>
-          Multi-tenant SaaS · Built for life insurance agencies, IMOs, and FMOs.
-        </span>
+        <span>Mentorship-first agency network for life insurance producers.</span>
       </footer>
+    </div>
+  );
+}
+
+/* ---------- crossfading mentor photos as the hero background ---------- */
+function HeroSlideshow() {
+  const [i, setI] = useState(0);
+  const slides = HERO_PHOTOS;
+
+  useEffect(() => {
+    if (slides.length < 2) return;
+    const t = setInterval(() => setI((p) => (p + 1) % slides.length), 5000);
+    return () => clearInterval(t);
+  }, [slides.length]);
+
+  return (
+    <div className="absolute inset-0 -z-20 bg-ink">
+      {/* photo layer: full-bleed on mobile, anchored to the right on desktop */}
+      <div className="absolute inset-0 lg:left-auto lg:w-[62%]">
+        {slides.map((src, idx) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={src}
+            src={src}
+            alt="NonStop mentor"
+            className={`absolute inset-0 h-full w-full object-cover object-[center_25%] transition-opacity duration-[1200ms] ease-in-out ${
+              idx === i ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* slide dots */}
+      {slides.length > 1 && (
+        <div className="absolute bottom-5 right-5 z-10 flex gap-1.5">
+          {slides.map((_, idx) => (
+            <span
+              key={idx}
+              className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                idx === i ? "bg-nonstop" : "bg-white/40"
+              }`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
