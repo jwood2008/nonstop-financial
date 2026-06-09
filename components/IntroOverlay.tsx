@@ -142,7 +142,7 @@ function GooeyMorphToLogo({
 
   return (
     <div
-      className="relative flex h-[160px] w-full items-center justify-center"
+      className="relative h-[140px] w-full"
       style={{ filter: "url(#introThreshold)" }}
     >
       <svg className="absolute h-0 w-0" aria-hidden="true" focusable="false">
@@ -159,9 +159,10 @@ function GooeyMorphToLogo({
           </filter>
         </defs>
       </svg>
+      {/* word and logo share the exact same center so the morph stays put */}
       <span
         ref={wordRef}
-        className="absolute select-none text-center font-display text-6xl tracking-tight text-black sm:text-8xl"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none whitespace-nowrap text-center font-display text-6xl tracking-tight text-black sm:text-8xl"
       >
         {word}
       </span>
@@ -170,7 +171,7 @@ function GooeyMorphToLogo({
         ref={logoRef}
         src={logo}
         alt="NonStop Financial"
-        className="absolute h-32 w-auto sm:h-40"
+        className="absolute left-1/2 top-1/2 h-32 w-auto -translate-x-1/2 -translate-y-1/2 sm:h-40"
         style={{ opacity: 0 }}
       />
     </div>
