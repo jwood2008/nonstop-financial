@@ -53,6 +53,11 @@ function Html5Watch({
   const watched = useRef<Set<number>>(new Set());
   const maxReached = useRef(0); // furthest position genuinely reached (sec)
   const lastSent = useRef(0);
+  // keep latest callback / initial value in refs so the effect runs once per
+  // src — progress updates must NOT re-run it (that would reset the player)
+  const cb = useRef(onProgress);
+  cb.current = onProgress;
+  const initRef = useRef(initialProgress);
 
   useEffect(() => {
     const v = ref.current;
@@ -63,14 +68,14 @@ function Html5Watch({
       // throttle: only on a meaningful gain, but always fire on completion
       if (f >= WATCH_THRESHOLD || f >= lastSent.current + 0.02) {
         lastSent.current = f;
-        onProgress(f);
+        cb.current(f);
       }
     };
 
     const onMeta = () => {
       // let returning learners resume up to where they'd already watched
-      if (initialProgress > 0 && v.duration) {
-        maxReached.current = initialProgress * v.duration;
+      if (initRef.current > 0 && v.duration) {
+        maxReached.current = initRef.current * v.duration;
       }
     };
     const onTime = () => {
@@ -94,7 +99,7 @@ function Html5Watch({
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("seeking", onSeeking);
     };
-  }, [src, initialProgress, onProgress]);
+  }, [src]);
 
   return (
     <video
@@ -138,6 +143,10 @@ function YouTubeWatch({
   const holder = useRef<HTMLDivElement>(null);
   const watched = useRef<Set<number>>(new Set());
   const lastSent = useRef(0);
+  // latest callback in a ref so progress updates never re-run the effect (which
+  // would rebuild the player and restart the video)
+  const cb = useRef(onProgress);
+  cb.current = onProgress;
 
   useEffect(() => {
     let player: YouTubePlayer | null = null;
@@ -148,7 +157,7 @@ function YouTubeWatch({
       const v = Math.min(1, Math.max(0, f));
       if (v >= WATCH_THRESHOLD || v >= lastSent.current + 0.02) {
         lastSent.current = v;
-        onProgress(v);
+        cb.current(v);
       }
     };
 
@@ -187,7 +196,7 @@ function YouTubeWatch({
         /* ignore */
       }
     };
-  }, [videoId, onProgress]);
+  }, [videoId]);
 
   return (
     <div className="aspect-video">
