@@ -11,8 +11,9 @@ import { GooeyText } from "@/components/ui/gooey-text-morphing";
  * NOTE: currently plays on every visit so it's easy to design. Before launch,
  * gate it with sessionStorage ("nf.introSeen") to show only once per session.
  */
-const WORDS = ["Welcome", "Mentorship", "Legacy", "Family"];
-const WORDS_MS = 7000; // how long the words morph before the logo
+const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
+const SECONDS_PER_WORD = 4;
+const WORDS_MS = WORDS.length * SECONDS_PER_WORD * 1000; // ~4s per word
 const LOGO_MS = 2400; // logo hold
 const DOOR_MS = 1100; // garage-door slide
 
@@ -67,8 +68,8 @@ export function IntroOverlay() {
       {stage === "words" ? (
         <GooeyText
           texts={WORDS}
-          morphTime={1.1}
-          cooldownTime={1.1}
+          morphTime={0.8}
+          cooldownTime={SECONDS_PER_WORD - 0.8}
           className="h-[140px] w-full"
           textClassName="text-black font-display tracking-tight text-6xl sm:text-8xl"
         />
