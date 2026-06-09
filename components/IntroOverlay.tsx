@@ -12,7 +12,7 @@ import { GooeyText } from "@/components/ui/gooey-text-morphing";
  * gate it with sessionStorage ("nf.introSeen") to show only once per session.
  */
 const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
-const SECONDS_PER_WORD = 2;
+const SECONDS_PER_WORD = 1.75;
 // cut to the logo while the last word is still up, before the loop wraps back
 const WORDS_MS = (WORDS.length - 0.5) * SECONDS_PER_WORD * 1000;
 const LOGO_MS = 2400; // logo hold
@@ -51,7 +51,11 @@ export function IntroOverlay() {
 
   return (
     <div
-      className={`fixed inset-0 z-[80] flex flex-col items-center justify-center bg-white transition-transform ease-[cubic-bezier(0.76,0,0.24,1)] ${
+      onClick={lift}
+      role="button"
+      tabIndex={-1}
+      aria-label="Enter the site"
+      className={`fixed inset-0 z-[80] flex cursor-pointer flex-col items-center justify-center bg-white transition-transform ease-[cubic-bezier(0.76,0,0.24,1)] ${
         leaving ? "-translate-y-full" : "translate-y-0"
       }`}
       style={{ transitionDuration: `${DOOR_MS}ms` }}
@@ -84,12 +88,9 @@ export function IntroOverlay() {
         />
       )}
 
-      <button
-        onClick={lift}
-        className="absolute bottom-10 text-[11px] font-medium uppercase tracking-[0.3em] text-black/40 transition hover:text-black/70"
-      >
-        Enter →
-      </button>
+      <span className="absolute bottom-10 text-[11px] font-medium uppercase tracking-[0.3em] text-black/40">
+        Click to enter →
+      </span>
     </div>
   );
 }

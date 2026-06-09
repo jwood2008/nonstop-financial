@@ -75,9 +75,11 @@ grant execute on function public.events_active_hours(date, date) to authenticate
 create or replace function public.top_content(p_from date, p_to date)
 returns table (ref text, views int, completes int)
 language sql security definer set search_path = public as $$
+  -- unique viewers / completers per lesson (each user counted once), so
+  -- completion can't exceed 100%
   select ref,
-         count(*) filter (where type = 'lesson_view')::int     as views,
-         count(*) filter (where type = 'lesson_complete')::int as completes
+         count(distinct user_id) filter (where type = 'lesson_view')::int     as views,
+         count(distinct user_id) filter (where type = 'lesson_complete')::int as completes
   from public.events
   where ref is not null
     and type in ('lesson_view', 'lesson_complete')
@@ -145,8 +147,9 @@ language sql security definer set search_path = public as $$
   ),
   daily as (
     select s.d,
-      count(ev.*) filter (where ev.type = 'lesson_view')     as views,
-      count(ev.*) filter (where ev.type = 'lesson_complete') as completes,
+      -- count each user once per lesson per day (a rewatch isn't a new view)
+      count(distinct (ev.user_id, ev.ref)) filter (where ev.type = 'lesson_view')     as views,
+      count(distinct (ev.user_id, ev.ref)) filter (where ev.type = 'lesson_complete') as completes,
       count(ev.*) filter (where ev.type = 'quiz_attempt')    as quizzes,
       count(distinct ev.user_id)                             as actives
     from span s left join public.events ev on ev.created_at::date = s.d
@@ -168,8 +171,8 @@ language sql security definer set search_path = public as $$
   ),
   prev as (
     select
-      count(*) filter (where type='lesson_view') as views,
-      count(*) filter (where type='lesson_complete') as completes,
+      count(distinct (user_id, ref)) filter (where type='lesson_view') as views,
+      count(distinct (user_id, ref)) filter (where type='lesson_complete') as completes,
       count(*) filter (where type='quiz_attempt') as quizzes
     from public.events, bounds
     where created_at::date between bounds.pf and bounds.pt

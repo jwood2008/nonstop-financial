@@ -198,7 +198,10 @@ function Analytics() {
             ref: r.ref,
             title: lessons.find((l) => l.id === r.ref)?.title ?? "Untitled lesson",
             views: r.views,
-            completion: r.views > 0 ? Math.round((r.completes / r.views) * 100) : 0,
+            completion:
+              r.views > 0
+                ? Math.min(100, Math.round((r.completes / r.views) * 100))
+                : 0,
           }))
         );
       }
