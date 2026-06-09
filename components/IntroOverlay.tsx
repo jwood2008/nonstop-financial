@@ -1,22 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GooeyText } from "@/components/ui/gooey-text-morphing";
 
 /**
- * First-visit intro. A white screen shows minimalist words morphing inside a
- * modern card (GooeyText), ends on the NonStop logo, then the whole panel
- * slides up like a garage door to reveal the landing page.
+ * First-visit intro. Minimalist words morph on a white screen (GooeyText), the
+ * last word then morphs — same gooey blur/threshold effect — into the NonStop
+ * logo, and the whole panel slides up like a garage door to reveal the landing.
  *
  * NOTE: currently plays on every visit so it's easy to design. Before launch,
  * gate it with sessionStorage ("nf.introSeen") to show only once per session.
  */
 const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
 const SECONDS_PER_WORD = 1.5;
-// cut to the logo while the last word is still up, before the loop wraps back
+// cut to the logo morph while the last word is still up, before the loop wraps
 const WORDS_MS = (WORDS.length - 0.5) * SECONDS_PER_WORD * 1000;
-const LOGO_MS = 2400; // logo hold
+const MORPH_MS = 1100; // last word → logo gooey morph
+const LOGO_MS = 1700; // logo hold
 const DOOR_MS = 1100; // garage-door slide
+const LOGO_SRC = "/brand/logo-vertical-black.png";
 
 export function IntroOverlay() {
   const [stage, setStage] = useState<"words" | "logo">("words");
@@ -35,10 +37,13 @@ export function IntroOverlay() {
       return;
     }
     const t1 = window.setTimeout(() => setStage("logo"), WORDS_MS);
-    const t2 = window.setTimeout(() => setLeaving(true), WORDS_MS + LOGO_MS);
+    const t2 = window.setTimeout(
+      () => setLeaving(true),
+      WORDS_MS + MORPH_MS + LOGO_MS
+    );
     const t3 = window.setTimeout(
       () => setDone(true),
-      WORDS_MS + LOGO_MS + DOOR_MS
+      WORDS_MS + MORPH_MS + LOGO_MS + DOOR_MS
     );
     return () => {
       window.clearTimeout(t1);
@@ -69,7 +74,7 @@ export function IntroOverlay() {
         </span>
       </div>
 
-      {/* words / logo, directly on the white page */}
+      {/* words → (gooey morph) → logo */}
       {stage === "words" ? (
         <GooeyText
           texts={WORDS}
@@ -79,18 +84,95 @@ export function IntroOverlay() {
           textClassName="text-black font-display tracking-tight text-6xl sm:text-8xl"
         />
       ) : (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src="/brand/logo-vertical-black.png"
-          alt="NonStop Financial"
-          className="h-32 w-auto sm:h-40"
-          style={{ animation: "introFade 600ms ease both" }}
+        <GooeyMorphToLogo
+          word={WORDS[WORDS.length - 1]}
+          logo={LOGO_SRC}
+          duration={MORPH_MS}
         />
       )}
 
       <span className="absolute bottom-10 text-[11px] font-medium uppercase tracking-[0.3em] text-black/40">
         Click to enter →
       </span>
+    </div>
+  );
+}
+
+/**
+ * Morphs the last word into the logo with the same gooey effect as GooeyText:
+ * both layers blur under an SVG alpha-threshold filter, the word melting out as
+ * the logo congeals in. Holds the sharp logo after the morph completes.
+ */
+function GooeyMorphToLogo({
+  word,
+  logo,
+  duration,
+}: {
+  word: string;
+  logo: string;
+  duration: number;
+}) {
+  const wordRef = useRef<HTMLSpanElement>(null);
+  const logoRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    const t0 = performance.now();
+    const apply = (f: number) => {
+      const inF = Math.max(f, 0.0001); // logo coming in
+      if (logoRef.current) {
+        logoRef.current.style.filter = `blur(${Math.min(8 / inF - 8, 100)}px)`;
+        logoRef.current.style.opacity = `${Math.pow(inF, 0.4) * 100}%`;
+      }
+      const outF = Math.max(1 - f, 0.0001); // word going out
+      if (wordRef.current) {
+        wordRef.current.style.filter = `blur(${Math.min(8 / outF - 8, 100)}px)`;
+        wordRef.current.style.opacity = `${Math.pow(outF, 0.4) * 100}%`;
+      }
+    };
+    apply(0);
+    const tick = () => {
+      const f = Math.min((performance.now() - t0) / duration, 1);
+      apply(f);
+      if (f < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [duration]);
+
+  return (
+    <div
+      className="relative flex h-[160px] w-full items-center justify-center"
+      style={{ filter: "url(#introThreshold)" }}
+    >
+      <svg className="absolute h-0 w-0" aria-hidden="true" focusable="false">
+        <defs>
+          <filter id="introThreshold">
+            <feColorMatrix
+              in="SourceGraphic"
+              type="matrix"
+              values="1 0 0 0 0
+                      0 1 0 0 0
+                      0 0 1 0 0
+                      0 0 0 255 -140"
+            />
+          </filter>
+        </defs>
+      </svg>
+      <span
+        ref={wordRef}
+        className="absolute select-none text-center font-display text-6xl tracking-tight text-black sm:text-8xl"
+      >
+        {word}
+      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={logoRef}
+        src={logo}
+        alt="NonStop Financial"
+        className="absolute h-32 w-auto sm:h-40"
+        style={{ opacity: 0 }}
+      />
     </div>
   );
 }
