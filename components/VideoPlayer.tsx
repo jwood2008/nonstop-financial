@@ -50,7 +50,6 @@ function Html5Watch({
   onProgress: (f: number) => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const watched = useRef<Set<number>>(new Set());
   const maxReached = useRef(0); // furthest position genuinely reached (sec)
   const lastSent = useRef(0);
   // keep latest callback / initial value in refs so the effect runs once per
@@ -63,10 +62,13 @@ function Html5Watch({
     const v = ref.current;
     if (!v) return;
 
-    const report = (frac: number) => {
-      const f = Math.min(1, Math.max(0, frac));
-      // throttle: only on a meaningful gain, but always fire on completion
-      if (f >= WATCH_THRESHOLD || f >= lastSent.current + 0.02) {
+    const report = () => {
+      const dur = v.duration || 0;
+      if (!dur) return;
+      // progress = how far through the video you've genuinely reached → tracks
+      // the scrubber, so the end reads ~100% (no dropped-second drift)
+      const f = Math.min(1, Math.max(0, maxReached.current / dur));
+      if (f >= WATCH_THRESHOLD || f >= lastSent.current + 0.01) {
         lastSent.current = f;
         cb.current(f);
       }
@@ -79,11 +81,14 @@ function Html5Watch({
       }
     };
     const onTime = () => {
-      const dur = Math.floor(v.duration || 0);
-      if (!dur) return;
-      if (!v.paused && !v.seeking) watched.current.add(Math.floor(v.currentTime));
-      if (v.currentTime > maxReached.current) maxReached.current = v.currentTime;
-      report(watched.current.size / dur);
+      if (!v.paused && !v.seeking && v.currentTime > maxReached.current) {
+        maxReached.current = v.currentTime;
+      }
+      report();
+    };
+    const onEnded = () => {
+      maxReached.current = v.duration || maxReached.current;
+      report();
     };
     // Block fast-forwarding: snap back if they seek beyond what they've reached.
     const onSeeking = () => {
@@ -93,10 +98,12 @@ function Html5Watch({
 
     v.addEventListener("loadedmetadata", onMeta);
     v.addEventListener("timeupdate", onTime);
+    v.addEventListener("ended", onEnded);
     v.addEventListener("seeking", onSeeking);
     return () => {
       v.removeEventListener("loadedmetadata", onMeta);
       v.removeEventListener("timeupdate", onTime);
+      v.removeEventListener("ended", onEnded);
       v.removeEventListener("seeking", onSeeking);
     };
   }, [src]);
@@ -141,7 +148,7 @@ function YouTubeWatch({
   onProgress: (f: number) => void;
 }) {
   const holder = useRef<HTMLDivElement>(null);
-  const watched = useRef<Set<number>>(new Set());
+  const maxReached = useRef(0); // furthest position genuinely played (sec)
   const lastSent = useRef(0);
   // latest callback in a ref so progress updates never re-run the effect (which
   // would rebuild the player and restart the video)
@@ -155,7 +162,7 @@ function YouTubeWatch({
 
     const report = (f: number) => {
       const v = Math.min(1, Math.max(0, f));
-      if (v >= WATCH_THRESHOLD || v >= lastSent.current + 0.02) {
+      if (v >= WATCH_THRESHOLD || v >= lastSent.current + 0.01) {
         lastSent.current = v;
         cb.current(v);
       }
@@ -173,16 +180,29 @@ function YouTubeWatch({
         playerVars: { rel: 0, modestbranding: 1 },
         events: {
           onStateChange: (e: YouTubeStateEvent) => {
+            if (e.data === YT.PlayerState.ENDED) {
+              const dur = player?.getDuration?.() ?? 0;
+              if (dur > 0) {
+                maxReached.current = dur;
+                report(1);
+              }
+            }
             if (e.data === YT.PlayerState.PLAYING) {
               timer && clearInterval(timer);
+              // poll often enough to catch (and block) forward seeks
               timer = setInterval(() => {
-                const dur = Math.floor(player?.getDuration?.() ?? 0);
-                const t = Math.floor(player?.getCurrentTime?.() ?? 0);
-                if (dur > 0) {
-                  watched.current.add(t);
-                  report(watched.current.size / dur);
+                const dur = player?.getDuration?.() ?? 0;
+                const t = player?.getCurrentTime?.() ?? 0;
+                if (dur <= 0) return;
+                // a jump well past the furthest point watched = fast-forward →
+                // snap back. Rewinding (t < maxReached) is fine.
+                if (t > maxReached.current + 1.25) {
+                  player?.seekTo?.(maxReached.current, true);
+                  return;
                 }
-              }, 1000);
+                if (t > maxReached.current) maxReached.current = t;
+                report(maxReached.current / dur);
+              }, 500);
             } else if (timer) {
               clearInterval(timer);
               timer = null;
@@ -216,6 +236,7 @@ function YouTubeWatch({
 interface YouTubePlayer {
   getDuration?: () => number;
   getCurrentTime?: () => number;
+  seekTo?: (seconds: number, allowSeekAhead: boolean) => void;
   destroy?: () => void;
 }
 interface YouTubeStateEvent {
@@ -230,5 +251,5 @@ interface YouTubeNamespace {
       events?: { onStateChange?: (e: YouTubeStateEvent) => void };
     }
   ) => YouTubePlayer;
-  PlayerState: { PLAYING: number };
+  PlayerState: { PLAYING: number; ENDED: number };
 }
