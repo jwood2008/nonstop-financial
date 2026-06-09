@@ -31,7 +31,7 @@ export default function RootLayout({
         {/* Apply the saved theme before paint to avoid a flash of the wrong mode. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('nf.theme')||'dark';var r=document.documentElement;r.classList.toggle('dark',t!=='light');r.classList.toggle('light',t==='light');}catch(e){}})();`,
+            __html: `(function(){try{var p=localStorage.getItem('nf.theme')||'dark';var d=p==='system'?matchMedia('(prefers-color-scheme: dark)').matches:p!=='light';var r=document.documentElement;r.classList.toggle('dark',d);r.classList.toggle('light',!d);}catch(e){}})();`,
           }}
         />
       </head>

@@ -6,6 +6,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { Logo, NonstopMark } from "@/components/Brand";
 import { ArrowRight, Check } from "lucide-react";
+import { Text_03 } from "@/components/ui/wave-text";
 
 const PRICE = process.env.NEXT_PUBLIC_PRICE_LABEL || "$497";
 
@@ -129,7 +130,7 @@ export default function Landing() {
                 href="/signup"
                 className="group inline-flex items-center gap-2 bg-nonstop px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
               >
-                Sign up for mentorship
+                <Text_03 text="Sign up for mentorship" className="w-auto text-sm" />
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
               </Link>
               <Link
@@ -272,7 +273,10 @@ export default function Landing() {
                   href="/signup"
                   className="group inline-flex items-center gap-2 bg-nonstop px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
                 >
-                  A part of NonStop? It&apos;s free
+                  <Text_03
+                    text="A part of NonStop? It's free"
+                    className="w-auto text-sm"
+                  />
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>
                 <Link
@@ -304,7 +308,7 @@ export default function Landing() {
               href="/signup"
               className="group inline-flex items-center gap-2 bg-nonstop px-7 py-3.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
             >
-              Sign up for free
+              <Text_03 text="Sign up for free" className="w-auto text-sm" />
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </Link>
             <Link

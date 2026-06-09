@@ -36,7 +36,7 @@ const LS_THEME = "nf.theme"; // "dark" | "light"
 const LS_ACCOUNTS = "nf.accounts"; // { [emailLower]: Account }
 const LS_VIDEO = "nf.videoProgress"; // { [blockId]: fraction watched 0..1 }
 
-type Theme = "dark" | "light";
+type Theme = "dark" | "light" | "system";
 
 /** A locally-stored account. No backend yet — this stands in for Supabase. */
 type Account = {
@@ -441,8 +441,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // reflect the theme onto <html> so CSS (html.light / html.dark) can switch
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.toggle("dark", theme === "dark");
-    root.classList.toggle("light", theme === "light");
+    const mql = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      // "system" follows the OS; otherwise anything that isn't "light" is dark
+      const dark = theme === "system" ? mql.matches : theme !== "light";
+      root.classList.toggle("dark", dark);
+      root.classList.toggle("light", !dark);
+    };
+    apply();
+    if (theme === "system") {
+      mql.addEventListener("change", apply);
+      return () => mql.removeEventListener("change", apply);
+    }
   }, [theme]);
 
   const setTheme = (t: Theme) => {

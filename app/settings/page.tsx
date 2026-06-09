@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { useStore, type AdminRow } from "@/lib/store";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
 import { POSITION_ROLES, DEFAULT_ROLE } from "@/lib/roles";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Camera,
   Trash2,
@@ -14,8 +15,6 @@ import {
   Shield,
   Lock,
   Check,
-  Sun,
-  Moon,
   UserPlus,
   Crown,
   X,
@@ -31,8 +30,7 @@ export default function SettingsPage() {
 }
 
 function Settings() {
-  const { email, role, profile, updateProfile, logout, theme, setTheme, hasPaid } =
-    useStore();
+  const { email, role, profile, updateProfile, logout, hasPaid } = useStore();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
@@ -169,25 +167,11 @@ function Settings() {
       <RolePanel />
 
       {/* Appearance */}
-      <Section title="Appearance" subtitle="Choose how NonStop Financial looks.">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ThemeOption
-            active={theme === "dark"}
-            onClick={() => setTheme("dark")}
-            icon={<Moon className="h-4 w-4" />}
-            label="Dark"
-            desc="The original, low-glare interface."
-            swatch="#15161a"
-          />
-          <ThemeOption
-            active={theme === "light"}
-            onClick={() => setTheme("light")}
-            icon={<Sun className="h-4 w-4" />}
-            label="Light"
-            desc="Bright paper for well-lit rooms."
-            swatch="#ffffff"
-          />
-        </div>
+      <Section
+        title="Appearance"
+        subtitle="Choose your interface color theme."
+      >
+        <ThemeToggle />
       </Section>
 
       {/* Billing */}
@@ -523,48 +507,6 @@ function Section({
       <p className="mb-5 mt-0.5 text-sm text-muted">{subtitle}</p>
       {children}
     </section>
-  );
-}
-
-function ThemeOption({
-  active,
-  onClick,
-  icon,
-  label,
-  desc,
-  swatch,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  desc: string;
-  swatch: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex items-center gap-3 border p-3 text-left transition ${
-        active
-          ? "border-nonstop bg-nonstop/10"
-          : "border-line-2 bg-surface-2 hover:border-line"
-      }`}
-    >
-      <span
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-line text-white"
-        style={{ background: swatch, color: swatch === "#ffffff" ? "#18181b" : "#fff" }}
-      >
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-1.5 text-sm font-semibold text-white">
-          {label}
-          {active && <Check className="h-3.5 w-3.5 text-nonstop" />}
-        </span>
-        <span className="block text-xs text-muted-2">{desc}</span>
-      </span>
-    </button>
   );
 }
 
