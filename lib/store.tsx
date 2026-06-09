@@ -22,6 +22,7 @@ import { SEED_PERSONAS } from "./personas";
 import { DEMO_EMAIL, isAdminEmail } from "./admins";
 import { supabase, isSupabaseConfigured, track } from "./supabase";
 import { isTrackableVideo, WATCH_THRESHOLD } from "./video";
+import { DEFAULT_ROLE } from "./roles";
 
 const LS_ROLE = "nf.role";
 const LS_EMAIL = "nf.email";
@@ -57,7 +58,15 @@ export type AdminRow = {
   created_at: string;
 };
 
-const DEFAULT_PROFILE = { name: "", avatar: "", phone: "", title: "", age: 0 };
+const DEFAULT_PROFILE = {
+  name: "",
+  avatar: "",
+  phone: "",
+  title: "",
+  age: 0,
+  role: DEFAULT_ROLE as string,
+  requestedRole: null as string | null,
+};
 
 /** Bucket a raw age into the brackets shown in the analytics audience widget. */
 export function ageBracket(age: number): string {
@@ -107,8 +116,18 @@ interface Store {
   setTheme: (t: Theme) => void;
 
   // editable account profile (no backend — persisted locally)
-  profile: { name: string; avatar: string; phone: string; title: string; age: number };
+  profile: {
+    name: string;
+    avatar: string;
+    phone: string;
+    title: string;
+    age: number;
+    role: string;
+    requestedRole: string | null;
+  };
   updateProfile: (patch: Partial<Store["profile"]>) => void;
+  /** Request a different position (admins approve). Empty string cancels. */
+  requestRoleChange: (role: string) => Promise<AuthResult>;
 
   course: Course;
   resetCourse: () => void;
@@ -202,9 +221,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // pull a logged-in user's profile row from Supabase into local state
   const loadProfile = async (uid: string) => {
     if (!supabase) return;
+    // select * so a not-yet-migrated DB (no role columns) doesn't error
     const { data } = await supabase
       .from("profiles")
-      .select("name, age, phone, title, avatar")
+      .select("*")
       .eq("id", uid)
       .maybeSingle();
     if (data)
@@ -215,6 +235,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         phone: data.phone ?? p.phone,
         title: data.title ?? p.title,
         avatar: data.avatar ?? p.avatar,
+        role: data.role ?? p.role,
+        requestedRole: data.requested_role ?? null,
       }));
   };
 
@@ -632,6 +654,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setTheme,
       profile,
       updateProfile: (patch) => setProfile((p) => ({ ...p, ...patch })),
+      requestRoleChange: async (role) => {
+        if (!isSupabaseConfigured || !supabase)
+          return { ok: false, error: "Connect Supabase to request a role." };
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return { ok: false, error: "Please sign in again." };
+        try {
+          const res = await fetch("/api/role/request", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ role }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok)
+            return { ok: false, error: data?.error ?? "Couldn't submit request." };
+          setProfile((p) => ({ ...p, requestedRole: role || null }));
+          return { ok: true };
+        } catch {
+          return { ok: false, error: "Network error — try again." };
+        }
+      },
       course,
       resetCourse: () => setCourse(structuredClone(SEED_COURSE)),
 

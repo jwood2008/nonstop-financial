@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { isPositionRole } from "@/lib/roles";
 
 export const runtime = "nodejs";
 
 /**
- * Admin-only: list every signed-up user (name + email) for the analytics
- * Users panel. Uses the service-role client to read past profiles RLS, after
- * verifying the caller is an admin (owner or sub-admin).
+ * Admin-only: set a user's position (and clear any pending request). Gated to
+ * admins (owner or sub-admin); runs as service role so the role-protect trigger
+ * lets the change through.
  */
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anon || !supabaseAdmin) {
@@ -27,8 +28,6 @@ export async function GET(req: NextRequest) {
   if (!callerEmail) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-
-  // caller must be an admin (owner or sub-admin)
   const { data: caller } = await supabaseAdmin
     .from("app_admins")
     .select("role")
@@ -38,24 +37,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Admins only." }, { status: 403 });
   }
 
-  // Prefer the role columns; fall back if the migration hasn't been run yet.
-  let users: unknown[] | null = null;
-  const withRoles = await supabaseAdmin
-    .from("profiles")
-    .select("id, name, email, created_at, role, requested_role")
-    .order("created_at", { ascending: false });
-  if (withRoles.error) {
-    const basic = await supabaseAdmin
-      .from("profiles")
-      .select("id, name, email, created_at")
-      .order("created_at", { ascending: false });
-    if (basic.error) {
-      return NextResponse.json({ error: basic.error.message }, { status: 500 });
-    }
-    users = basic.data;
-  } else {
-    users = withRoles.data;
+  const body = await req.json().catch(() => ({}));
+  const userId = String(body?.userId ?? "").trim();
+  const role = String(body?.role ?? "").trim();
+  if (!userId) {
+    return NextResponse.json({ error: "Missing user." }, { status: 400 });
+  }
+  if (!isPositionRole(role)) {
+    return NextResponse.json({ error: "Unknown role." }, { status: 400 });
   }
 
-  return NextResponse.json({ users: users ?? [] });
+  const { error } = await supabaseAdmin
+    .from("profiles")
+    .update({ role, requested_role: null })
+    .eq("id", userId);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, role });
 }

@@ -35,6 +35,7 @@ import {
   Share2,
 } from "lucide-react";
 import { exportReportPdf, exportReportImage, type ReportData } from "@/lib/report";
+import { POSITION_ROLES } from "@/lib/roles";
 
 export default function AdminPage() {
   return (
@@ -84,7 +85,14 @@ type TopRow = {
   avgWatch?: string;
   trend?: number;
 };
-type UserRow = { id: string; name: string; email: string; created_at: string };
+type UserRow = {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+  role?: string;
+  requested_role?: string | null;
+};
 type KpiRow = {
   key: string;
   label: string;
@@ -248,6 +256,30 @@ function Analytics() {
       cancelled = true;
     };
   }, []);
+
+  // admin sets a user's position (and clears their pending request)
+  const setUserRole = async (userId: string, role: string) => {
+    if (!supabase) return;
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return;
+    const res = await fetch("/api/admin/set-role", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId, role }),
+    });
+    if (!res.ok) return;
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, role, requested_role: null } : u
+      )
+    );
+  };
 
   if (!canBeAdmin) {
     return (
@@ -445,15 +477,23 @@ function Analytics() {
           tone="light"
           preview={<UsersList rows={users} limit={6} />}
         >
-          <UsersList rows={users} />
+          <UsersList rows={users} onSetRole={setUserRole} />
         </ExpandablePanel>
       </div>
     </div>
   );
 }
 
-/* ── all signed-up users (name + email) ── */
-function UsersList({ rows, limit }: { rows: UserRow[]; limit?: number }) {
+/* ── all signed-up users (name + email + position) ── */
+function UsersList({
+  rows,
+  limit,
+  onSetRole,
+}: {
+  rows: UserRow[];
+  limit?: number;
+  onSetRole?: (userId: string, role: string) => void;
+}) {
   const data = limit ? rows.slice(0, limit) : rows;
   if (data.length === 0)
     return <EmptyState label="No users have signed up yet." />;
@@ -462,10 +502,14 @@ function UsersList({ rows, limit }: { rows: UserRow[]; limit?: number }) {
       {data.map((u) => {
         const name = u.name?.trim() || "—";
         const initial = (u.name?.trim() || u.email || "?").charAt(0).toUpperCase();
+        const role = u.role || "Lead";
+        const pending = u.requested_role && u.requested_role !== role
+          ? u.requested_role
+          : null;
         return (
           <li
             key={u.id}
-            className="flex items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
+            className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3"
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 font-display text-sm font-bold text-white/60">
               {initial}
@@ -474,6 +518,39 @@ function UsersList({ rows, limit }: { rows: UserRow[]; limit?: number }) {
               <p className="truncate font-medium text-white">{name}</p>
               <p className="truncate text-xs text-white/55">{u.email}</p>
             </div>
+
+            {pending && (
+              <span className="text-xs text-amber-300">wants {pending}</span>
+            )}
+
+            {onSetRole ? (
+              <div className="flex items-center gap-2">
+                {pending && (
+                  <button
+                    onClick={() => onSetRole(u.id, pending)}
+                    className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2.5 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-400/20"
+                  >
+                    Approve
+                  </button>
+                )}
+                <select
+                  value={role}
+                  onChange={(e) => onSetRole(u.id, e.target.value)}
+                  className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-1.5 text-xs text-white outline-none focus:border-nonstop"
+                  title="Set position"
+                >
+                  {POSITION_ROLES.map((r) => (
+                    <option key={r} value={r} className="bg-[#15161a] text-white">
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-xs font-medium text-white/70">
+                {role}
+              </span>
+            )}
           </li>
         );
       })}

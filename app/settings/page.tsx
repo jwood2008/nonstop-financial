@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { useStore, type AdminRow } from "@/lib/store";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
+import { POSITION_ROLES, DEFAULT_ROLE } from "@/lib/roles";
 import {
   Camera,
   Trash2,
@@ -164,6 +165,9 @@ function Settings() {
         <p className="mt-3 text-xs text-muted-2">Changes save automatically.</p>
       </Section>
 
+      {/* Position / role */}
+      <RolePanel />
+
       {/* Appearance */}
       <Section title="Appearance" subtitle="Choose how NonStop Financial looks.">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -293,6 +297,95 @@ function Settings() {
         </div>
       </Section>
     </div>
+  );
+}
+
+/** Your position on the team — view it, and request a change (admins approve). */
+function RolePanel() {
+  const { profile, requestRoleChange } = useStore();
+  const [choice, setChoice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const current = profile.role || DEFAULT_ROLE;
+  const pending = profile.requestedRole;
+  const options = POSITION_ROLES.filter((r) => r !== current);
+
+  const submit = async () => {
+    if (!choice) return;
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    const res = await requestRoleChange(choice);
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    setMsg(`Requested ${choice}. An admin will review it.`);
+    setChoice("");
+  };
+  const cancel = async () => {
+    setBusy(true);
+    setErr(null);
+    setMsg(null);
+    const res = await requestRoleChange("");
+    setBusy(false);
+    if (!res.ok) return setErr(res.error);
+    setMsg("Request cancelled.");
+  };
+
+  return (
+    <Section
+      title="Your Position"
+      subtitle="Your role on the team. You can request a change — an admin approves it."
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="inline-flex items-center gap-2 rounded-md border border-line-2 bg-surface-2 px-3 py-2 text-sm font-semibold text-white">
+          <BadgeCheck className="h-4 w-4 text-nonstop" />
+          {current}
+        </span>
+        {pending && (
+          <span className="text-xs text-amber-300">
+            Requested: {pending} — pending admin approval
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <select
+          value={choice}
+          onChange={(e) => setChoice(e.target.value)}
+          className={`${inputCls} max-w-xs`}
+        >
+          <option value="">Request a different position…</option>
+          {options.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={submit}
+          disabled={busy || !choice}
+          className="inline-flex items-center gap-1.5 bg-nonstop px-4 py-2 text-sm font-semibold text-white transition hover:bg-nonstop-dark disabled:opacity-50"
+        >
+          Request
+        </button>
+        {pending && (
+          <button
+            onClick={cancel}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 border border-line-2 px-3 py-2 text-sm text-muted transition hover:text-white disabled:opacity-50"
+          >
+            Cancel request
+          </button>
+        )}
+      </div>
+      {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+      {msg && <p className="mt-2 text-xs text-green-400">{msg}</p>}
+      <p className="mt-3 text-xs text-muted-2">
+        You can&apos;t set your own position — an admin reviews requests.
+      </p>
+    </Section>
   );
 }
 

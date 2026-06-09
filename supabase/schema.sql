@@ -97,3 +97,27 @@ as $$
 $$;
 
 grant execute on function public.age_distribution() to authenticated;
+
+-- 5. Position ladder (Lead → Agent → Senior Agent → Manager). Separate from
+--    admin status. New users default to 'Lead'. A user may set requested_role
+--    (a request), but ONLY an admin (service-role server route) may change the
+--    actual role — a trigger reverts any self-attempt.
+alter table public.profiles
+  add column if not exists role text not null default 'Lead',
+  add column if not exists requested_role text;
+
+create or replace function public.protect_profile_role()
+returns trigger language plpgsql as $$
+begin
+  -- Only the service role (our admin route) may change `role`; ignore others.
+  if (new.role is distinct from old.role)
+     and coalesce(auth.role(), '') <> 'service_role' then
+    new.role := old.role;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_protect_role on public.profiles;
+create trigger profiles_protect_role before update on public.profiles
+  for each row execute function public.protect_profile_role();
