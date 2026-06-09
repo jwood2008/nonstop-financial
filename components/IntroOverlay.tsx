@@ -13,7 +13,8 @@ import { GooeyText } from "@/components/ui/gooey-text-morphing";
  */
 const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
 const SECONDS_PER_WORD = 2;
-const WORDS_MS = WORDS.length * SECONDS_PER_WORD * 1000; // ~4s per word
+// cut to the logo while the last word is still up, before the loop wraps back
+const WORDS_MS = (WORDS.length - 0.5) * SECONDS_PER_WORD * 1000;
 const LOGO_MS = 2400; // logo hold
 const DOOR_MS = 1100; // garage-door slide
 
