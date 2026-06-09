@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { Logo, NonstopMark } from "@/components/Brand";
 import { ArrowRight, Check } from "lucide-react";
 import { Text_03 } from "@/components/ui/wave-text";
+import { IntroOverlay } from "@/components/IntroOverlay";
 
 const PRICE = process.env.NEXT_PUBLIC_PRICE_LABEL || "$497";
 
@@ -66,6 +67,8 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen" style={{ background: INK }}>
+      <IntroOverlay />
+
       {/* top bar (over the dark hero) */}
       <header>
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
