@@ -32,8 +32,10 @@ import {
   AlertTriangle,
   Check,
   ListChecks,
+  Lock,
 } from "lucide-react";
 import { lessonCoachState } from "@/lib/coach";
+import { isTrackableVideo } from "@/lib/video";
 import { TranscriptFetchButton } from "@/components/TranscriptFetchButton";
 import Plan from "@/components/ui/agent-plan";
 
@@ -68,6 +70,8 @@ function Learn() {
     updateModuleTitle,
     addLesson,
     removeLesson,
+    videoProgress,
+    canCompleteLesson,
   } = useStore();
   const lessons = allLessons(course);
   const [activeId, setActiveId] = useState(lessons[0]?.id);
@@ -144,6 +148,37 @@ function Learn() {
   useEffect(() => {
     if (active?.id) track("lesson_view", active.id);
   }, [active?.id]);
+
+  // ---- watch gate: must finish the lesson's video before it can complete ----
+  const gatedVideos = (active?.blocks ?? []).filter(
+    (b) => b.type === "video" && isTrackableVideo(b.src)
+  );
+  const watchGated = gatedVideos.length > 0;
+  const watchPct = watchGated
+    ? Math.floor(
+        Math.min(...gatedVideos.map((b) => videoProgress[b.id] ?? 0)) * 100
+      )
+    : 100;
+  const watchSatisfied = active ? canCompleteLesson(active.id) : true;
+  const isDone = active ? completed.has(active.id) : false;
+  // locked = there's a video to watch, it isn't watched yet, and not already done
+  const completeLocked = watchGated && !watchSatisfied && !isDone;
+
+  // auto-complete once the video has been watched (one-shot per lesson, so a
+  // manual un-complete still sticks)
+  const autoDone = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!active) return;
+    if (
+      watchGated &&
+      watchSatisfied &&
+      !completed.has(active.id) &&
+      !autoDone.current.has(active.id)
+    ) {
+      autoDone.current.add(active.id);
+      toggleComplete(active.id);
+    }
+  }, [active, watchGated, watchSatisfied, completed, toggleComplete]);
 
   const addTypes: { t: BlockType; label: string; icon: typeof Play }[] = [
     { t: "video", label: "Video", icon: Play },
@@ -475,16 +510,26 @@ function Learn() {
               </button>
             )}
             <motion.button
-              onClick={() => toggleComplete(active.id)}
-              whileTap={{ scale: 0.94 }}
+              onClick={() => {
+                if (!completeLocked) toggleComplete(active.id);
+              }}
+              disabled={completeLocked}
+              whileTap={completeLocked ? undefined : { scale: 0.94 }}
               transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              title={
+                completeLocked
+                  ? `Finish watching the video to complete this lesson (${watchPct}% watched)`
+                  : undefined
+              }
               className={`inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold transition-colors ${
-                completed.has(active.id)
+                isDone
                   ? "border border-nonstop/40 bg-nonstop/10 text-nonstop"
+                  : completeLocked
+                  ? "cursor-not-allowed border border-line-2 text-muted-2"
                   : "border border-line-2 text-white hover:border-nonstop hover:text-nonstop"
               }`}
             >
-              {completed.has(active.id) ? (
+              {isDone ? (
                 <motion.span
                   key="done"
                   initial={{ scale: 0, rotate: -30 }}
@@ -494,10 +539,16 @@ function Learn() {
                   {/* orange checkmark on completion */}
                   <CheckCircle2 className="h-4 w-4 text-nonstop" strokeWidth={2.5} />
                 </motion.span>
+              ) : completeLocked ? (
+                <Lock className="h-4 w-4" />
               ) : (
                 <Circle className="h-4 w-4" />
               )}
-              {completed.has(active.id) ? "Completed" : "Mark complete"}
+              {isDone
+                ? "Completed"
+                : completeLocked
+                ? `Watch to complete · ${watchPct}%`
+                : "Mark complete"}
             </motion.button>
           </div>
         </div>

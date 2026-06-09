@@ -21,6 +21,7 @@ import { SEED_COURSE } from "./data";
 import { SEED_PERSONAS } from "./personas";
 import { DEMO_EMAIL, isAdminEmail } from "./admins";
 import { supabase, isSupabaseConfigured, track } from "./supabase";
+import { isTrackableVideo, WATCH_THRESHOLD } from "./video";
 
 const LS_ROLE = "nf.role";
 const LS_EMAIL = "nf.email";
@@ -32,6 +33,7 @@ const LS_QUIZ = "nf.quizResults"; // { [blockId]: QuizAttempt[] }
 const LS_PROFILE = "nf.profile";
 const LS_THEME = "nf.theme"; // "dark" | "light"
 const LS_ACCOUNTS = "nf.accounts"; // { [emailLower]: Account }
+const LS_VIDEO = "nf.videoProgress"; // { [blockId]: fraction watched 0..1 }
 
 type Theme = "dark" | "light";
 
@@ -144,6 +146,12 @@ interface Store {
   setNote: (lessonId: string, text: string) => void;
   completed: Set<string>;
   toggleComplete: (lessonId: string) => void;
+
+  // video watch progress (per content block, 0..1) — gates lesson completion
+  videoProgress: Record<string, number>;
+  setVideoProgress: (blockId: string, fraction: number) => void;
+  /** False when a lesson has trackable video that isn't watched enough yet. */
+  canCompleteLesson: (lessonId: string) => boolean;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -183,6 +191,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [completed, setCompleted] = useState<Set<string>>(new Set());
+  const [videoProgress, setVideoProgressState] = useState<Record<string, number>>({});
   const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [theme, setThemeState] = useState<Theme>("dark");
   const [accounts, setAccounts] = useState<Record<string, Account>>({});
@@ -230,6 +239,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setAccounts(read<Record<string, Account>>(LS_ACCOUNTS, {}));
     setNotes(read<Record<string, string>>(LS_NOTES, {}));
     setCompleted(new Set(read<string[]>(LS_DONE, [])));
+    setVideoProgressState(read<Record<string, number>>(LS_VIDEO, {}));
 
     if (!isSupabaseConfigured || !supabase) {
       setEmail(read<string | null>(LS_EMAIL, null));
@@ -316,6 +326,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_DONE, JSON.stringify([...completed]));
   }, [completed, ready]);
+  useEffect(() => {
+    if (ready) window.localStorage.setItem(LS_VIDEO, JSON.stringify(videoProgress));
+  }, [videoProgress, ready]);
 
   // Admin tier: optimistic from the bootstrap owner list, then refined by
   // Supabase (which also knows runtime-added sub-admins).
@@ -579,6 +592,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // A lesson that contains trackable video can only be completed once that
+  // video has been watched past the threshold — no skipping to the end.
+  const lessonWatchSatisfied = (lessonId: string): boolean => {
+    const lesson = course.modules
+      .flatMap((m) => m.lessons)
+      .find((l) => l.id === lessonId);
+    if (!lesson) return true;
+    const vids = lesson.blocks.filter(
+      (b) => b.type === "video" && isTrackableVideo(b.src)
+    );
+    return vids.every((b) => (videoProgress[b.id] ?? 0) >= WATCH_THRESHOLD);
+  };
+
   const store: Store = useMemo(
     () => ({
       ready,
@@ -728,14 +754,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (next.has(lessonId)) {
             next.delete(lessonId);
           } else {
+            // gate: a lesson with trackable video must be watched first
+            if (!lessonWatchSatisfied(lessonId)) return prev;
             next.add(lessonId);
             void track("lesson_complete", lessonId);
           }
           return next;
         }),
+
+      videoProgress,
+      setVideoProgress: (blockId, fraction) =>
+        setVideoProgressState((prev) => {
+          const cur = prev[blockId] ?? 0;
+          const next = Math.min(1, Math.max(0, fraction));
+          // monotonic: progress only ever moves forward
+          return next > cur ? { ...prev, [blockId]: next } : prev;
+        }),
+      canCompleteLesson: lessonWatchSatisfied,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, personas, quizResults, notes, completed]
+    [ready, email, role, canBeAdmin, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, personas, quizResults, notes, completed, videoProgress]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

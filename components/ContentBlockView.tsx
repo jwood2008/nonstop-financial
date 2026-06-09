@@ -6,6 +6,7 @@ import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
 import type { ContentBlock, BlockType } from "@/lib/types";
 import { QuizEditor, QuizPlayer } from "@/components/QuizBlock";
 import { ImageUpload } from "@/components/ui/image-upload";
+import { VideoPlayer } from "@/components/VideoPlayer";
 import {
   Play,
   ImageIcon,
@@ -27,17 +28,6 @@ const TYPE_META: Record<BlockType, { label: string; icon: typeof Play; accept: s
   text: { label: "TEXT BLOCK", icon: Type, accept: "" },
   quiz: { label: "QUIZ", icon: ListChecks, accept: "" },
 };
-
-function isEmbed(src: string) {
-  return /youtube\.com|youtu\.be|vimeo\.com|player\.|mux\.com\/embed/i.test(src);
-}
-function embedUrl(src: string) {
-  const yt = src.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-  if (yt) return `https://www.youtube.com/embed/${yt[1]}`;
-  const vm = src.match(/vimeo\.com\/(\d+)/);
-  if (vm) return `https://player.vimeo.com/video/${vm[1]}`;
-  return src;
-}
 
 export function ContentBlockView({
   lessonId,
@@ -85,18 +75,7 @@ function RenderBlock({ block }: { block: ContentBlock }) {
     <figure className="space-y-2">
       <div className="overflow-hidden border border-line bg-black">
         {type === "video" ? (
-          isEmbed(src) ? (
-            <div className="aspect-video">
-              <iframe
-                src={embedUrl(src)}
-                className="h-full w-full"
-                allow="autoplay; fullscreen; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          ) : (
-            <video src={src} controls className="aspect-video w-full bg-black" />
-          )
+          <VideoBlock block={block} />
         ) : (
           // image + gif
           // eslint-disable-next-line @next/next/no-img-element
@@ -107,6 +86,18 @@ function RenderBlock({ block }: { block: ContentBlock }) {
         <figcaption className="text-sm text-muted">{caption}</figcaption>
       )}
     </figure>
+  );
+}
+
+/* ---------- video with watch-tracking wired to the store ---------- */
+function VideoBlock({ block }: { block: ContentBlock }) {
+  const { videoProgress, setVideoProgress } = useStore();
+  return (
+    <VideoPlayer
+      src={block.src}
+      initialProgress={videoProgress[block.id] ?? 0}
+      onProgress={(f) => setVideoProgress(block.id, f)}
+    />
   );
 }
 
