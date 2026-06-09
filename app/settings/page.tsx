@@ -323,7 +323,12 @@ function TeamAdmins() {
     const res = await addAdmin(input);
     setBusy(false);
     if (!res.ok) return setErr(res.error);
-    setMsg(`${input.trim().toLowerCase()} now has admin access.`);
+    const who = input.trim().toLowerCase();
+    setMsg(
+      res.emailed
+        ? `${who} now has admin access — we emailed them an invite.`
+        : `${who} now has admin access. (No email sent — set RESEND_API_KEY to notify them.)`
+    );
     setInput("");
     refresh();
   };

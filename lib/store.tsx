@@ -92,7 +92,7 @@ interface Store {
   adminStatus: AdminStatus;
   isOwner: boolean;
   listAdmins: () => Promise<AdminRow[]>;
-  addAdmin: (email: string) => Promise<AuthResult>;
+  addAdmin: (email: string) => Promise<AuthResult & { emailed?: boolean }>;
   removeAdmin: (email: string) => Promise<AuthResult>;
 
   // one-time purchase / access
@@ -365,16 +365,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.rpc("list_admins");
     return error || !data ? [] : (data as AdminRow[]);
   };
-  const addAdmin = async (em: string): Promise<AuthResult> => {
+  const addAdmin: Store["addAdmin"] = async (em) => {
     if (!isSupabaseConfigured || !supabase)
       return { ok: false, error: "Connect Supabase to manage admins." };
-    const { data, error } = await supabase.rpc("add_admin", { p_email: em });
-    if (error) return { ok: false, error: error.message };
-    if (data === "forbidden")
-      return { ok: false, error: "Only owners can add admins." };
-    if (data === "invalid")
-      return { ok: false, error: "Enter a valid email address." };
-    return { ok: true };
+    // Go through the server route so the new admin also gets a notification
+    // email (the add_admin RPC alone can't send mail). The route re-checks
+    // that the caller is an owner before granting.
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) return { ok: false, error: "Please sign in again." };
+    try {
+      const res = await fetch("/api/admin/add-admin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email: em }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok)
+        return { ok: false, error: data?.error ?? "Couldn't add admin." };
+      return { ok: true, emailed: Boolean(data?.emailed) };
+    } catch {
+      return { ok: false, error: "Network error — try again." };
+    }
   };
   const removeAdmin = async (em: string): Promise<AuthResult> => {
     if (!isSupabaseConfigured || !supabase)

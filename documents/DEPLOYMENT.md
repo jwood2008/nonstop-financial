@@ -47,7 +47,14 @@ from your current `.env.local` / the dashboards:
 | `STRIPE_WEBHOOK_SECRET` | Stripe → Webhooks (step 4) | per-endpoint secret |
 | `PRICE_CENTS` | your price, e.g. `49700` | |
 | `NEXT_PUBLIC_PRICE_LABEL` | display price, e.g. `$497` | |
+| `RESEND_API_KEY` | resend.com → API Keys | sends the "you're an admin" email; optional |
+| `ADMIN_EMAIL_FROM` | a verified sender on your domain | e.g. `NonStop Financial <team@YOUR_DOMAIN>` |
 | `NEXT_PUBLIC_VOICE_PROVIDER` | `browser` | leave as browser unless self-hosting whisper-flow |
+
+> **Admin invite emails:** when an owner adds a sub-admin in Settings, the app
+> emails them via Resend. Set `RESEND_API_KEY` and verify your sending domain at
+> resend.com → Domains, then set `ADMIN_EMAIL_FROM` to an address on it. Without
+> the key, admins are still added — they just don't get the email.
 
 ## 3. Supabase auth URLs (Supabase → Authentication → URL Configuration)
 
