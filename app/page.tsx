@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
 import { Logo, NonstopMark } from "@/components/Brand";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
+
+const PRICE = process.env.NEXT_PUBLIC_PRICE_LABEL || "$497";
 
 /**
  * Mentor photos that crossfade behind the hero. Drop more shots of Jay (and
@@ -76,7 +78,7 @@ export default function Landing() {
 
       {/* hero — cycling mentor photos as the background, text over the left */}
       <section
-        id="mentorship"
+        id="home"
         className="relative isolate overflow-hidden border-b border-line"
       >
         <HeroSlideshow />
@@ -123,8 +125,60 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* pillars */}
-      <section id="academy" className="border-b border-line">
+      {/* mentorship — Jay's bio */}
+      <section id="mentorship" className="border-b border-line">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 lg:grid-cols-[0.8fr_1.2fr]">
+          <div className="relative aspect-[4/5] w-full max-w-sm overflow-hidden border border-line-2 bg-surface">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/hero/jay-1.jpg"
+              alt="Jay — NonStop Financial"
+              className="h-full w-full object-cover object-[center_25%]"
+            />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+              <p className="font-display text-lg font-bold text-white">Jay</p>
+              <p className="text-xs uppercase tracking-widest text-white/70">
+                Founder &amp; Mentor
+              </p>
+            </div>
+          </div>
+
+          <div className="max-w-xl">
+            <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-nonstop">
+              Mentorship
+            </h2>
+            <p className="mt-4 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+              Talent is everywhere. Mentorship is rare.
+            </p>
+            <div className="mt-5 space-y-4 text-base leading-relaxed text-muted">
+              <p>
+                Jay built NonStop on a simple belief: most agents don&apos;t fail
+                for lack of talent — they fail because no one ever handed them the
+                playbook. After years in the field writing business and building
+                teams, he set out to do the opposite.
+              </p>
+              <p>
+                When you join NonStop, you don&apos;t get a course and a
+                &ldquo;good luck.&rdquo; You get a mentor in your corner, the exact
+                systems that work, and a team that wants you to win.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {["Field-tested", "Carrier-appointed", "Team-built"].map((t) => (
+                <span
+                  key={t}
+                  className="border border-line-2 px-3 py-1.5 text-xs font-medium text-muted"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* how NonStop works — pillars */}
+      <section className="border-b border-line">
         <div className="mx-auto grid max-w-6xl gap-px border-x border-line bg-line sm:grid-cols-3">
           {PILLARS.map(([title, desc]) => (
             <div key={title} className="bg-ink p-7">
@@ -134,6 +188,119 @@ export default function Landing() {
               <p className="mt-3 text-sm leading-relaxed text-muted">{desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* academy — the course + pricing + the free-for-NonStop hook */}
+      <section id="academy" className="border-b border-line">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="max-w-2xl">
+            <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-nonstop">
+              The Academy
+            </h2>
+            <p className="mt-4 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+              Everything you need to produce.
+            </p>
+            <p className="mt-4 text-base leading-relaxed text-muted">
+              The NonStop Academy is the full producer path — nine modules from
+              licensing to advanced production, plus AI coaching, cold-call
+              roleplay, and certification. Learn it once, use it for a career.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-px border border-line bg-line lg:grid-cols-2">
+            {/* what's included */}
+            <div className="bg-ink p-7">
+              <h3 className="font-display text-lg font-bold text-white">
+                What&apos;s inside
+              </h3>
+              <ul className="mt-4 space-y-2.5 text-sm text-muted">
+                {[
+                  "9 modules — Welcome, Mindset, Licensing, Contracting, Product, Sales, Systems, Recruiting, Scale",
+                  "AI coaching grounded in each lesson",
+                  "Cold-call roleplay scored in real time",
+                  "Certification + tracked progress",
+                  "Downloadable scripts, checklists & worksheets",
+                ].map((item) => (
+                  <li key={item} className="flex gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-nonstop" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* pricing + the hook */}
+            <div className="flex flex-col bg-ink p-7">
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-4xl font-bold text-white">
+                  {PRICE}
+                </span>
+                <span className="text-sm text-muted-2">one-time · full access</span>
+              </div>
+
+              <div className="mt-5 border border-nonstop/40 bg-nonstop/5 p-5">
+                <p className="font-display text-lg font-bold text-nonstop">
+                  Part of NonStop? It&apos;s free.
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted">
+                  Agents on the NonStop team get the entire Academy included —{" "}
+                  <span className="text-white line-through">{PRICE}</span>{" "}
+                  <span className="font-semibold text-white">$0</span>. Join the
+                  network, get mentored, and the course is on us.
+                </p>
+              </div>
+
+              <div className="mt-auto flex flex-col gap-3 pt-6">
+                <Link
+                  href="/signup"
+                  className="group inline-flex items-center justify-center gap-2 bg-nonstop px-5 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
+                >
+                  Join NonStop — get it free
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center border border-line-2 px-5 py-3 text-sm font-semibold text-white transition hover:border-zinc-500"
+                >
+                  Buy the Academy — {PRICE}
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* closing CTA + login */}
+      <section className="border-b border-line">
+        <div className="mx-auto max-w-6xl px-6 py-20 text-center">
+          <h2 className="font-display text-4xl font-bold leading-tight text-white sm:text-5xl">
+            Part of NonStop?
+            <br />
+            Sign up for free.
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-muted">
+            Join Jay&apos;s network and the Academy is included — no {PRICE}, just
+            mentorship and the tools to produce.
+          </p>
+          <div className="mt-8 flex flex-col items-center gap-3">
+            <Link
+              href="/signup"
+              className="group inline-flex items-center gap-2 bg-nonstop px-7 py-3.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
+            >
+              Sign up for free
+              <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+            </Link>
+            <Link
+              href="/login"
+              className="text-sm text-muted-2 transition hover:text-white"
+            >
+              Already have an account?{" "}
+              <span className="font-semibold text-white underline-offset-4 hover:underline">
+                Log in
+              </span>
+            </Link>
+          </div>
         </div>
       </section>
 
