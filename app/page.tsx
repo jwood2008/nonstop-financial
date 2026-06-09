@@ -180,10 +180,10 @@ export default function Landing() {
             </p>
             <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-zinc-600">
               <p>
-                Jay built NonStop on a simple belief: most agents don&apos;t fail
-                for lack of talent — they fail because no one ever handed them the
-                playbook. After years in the field writing business and building
-                teams, he set out to do the opposite.
+                Jay founded NonStop Financial as a way to help his friends access
+                a world of success. Over the past half-decade the business has
+                accelerated like a fractal — helping thousands become independent
+                advisors and salespeople.
               </p>
               <p>
                 When you join NonStop, you don&apos;t get a course and a
@@ -294,6 +294,13 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* quote band — Jay, full-bleed */}
+      <QuoteBand
+        quote="I believe there's a NonStop-able version of each and every one of us. I'm here to unlock it."
+        author="Jay Maska"
+        photo="/hero/jay-1.jpg"
+      />
+
       {/* closing CTA — INK band */}
       <section style={{ background: INK }}>
         <div className="mx-auto max-w-6xl px-6 py-28 text-center">
@@ -335,6 +342,47 @@ export default function Landing() {
         <span>Mentorship-first agency network for life insurance producers.</span>
       </footer>
     </div>
+  );
+}
+
+/* ---------- full-bleed quote band: photo of Jay + a big quote ---------- */
+function QuoteBand({
+  quote,
+  author,
+  photo,
+}: {
+  quote: string;
+  author: string;
+  photo: string;
+}) {
+  return (
+    <section
+      className="relative isolate flex min-h-[72svh] items-center overflow-hidden"
+      style={{ background: INK }}
+    >
+      {/* photo on the left */}
+      <div className="absolute inset-0 lg:right-auto lg:w-[54%]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={photo}
+          alt={author}
+          className="h-full w-full object-cover object-[center_18%]"
+        />
+      </div>
+      {/* scrim: dark on the right (for the quote), photo shows on the left */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#0d0e11] via-[#0d0e11]/85 to-[#0d0e11]/10 lg:via-[#0d0e11]/80 lg:to-transparent" />
+
+      <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
+        <blockquote className="ml-auto max-w-2xl text-right">
+          <p className="font-display text-3xl font-bold uppercase italic leading-[1.12] text-white drop-shadow-[0_2px_14px_rgba(0,0,0,0.6)] sm:text-5xl">
+            &ldquo;{quote}&rdquo;
+          </p>
+          <footer className="mt-6 text-xs font-bold uppercase tracking-[0.35em] text-nonstop">
+            — {author}
+          </footer>
+        </blockquote>
+      </div>
+    </section>
   );
 }
 
