@@ -46,11 +46,11 @@ export function ContentBlockView({
     return (
       <EditableBlock lessonId={lessonId} block={block} index={index} total={total} />
     );
-  return <RenderBlock block={block} />;
+  return <RenderBlock block={block} lessonId={lessonId} />;
 }
 
 /* ---------- read-only render (what users see) ---------- */
-function RenderBlock({ block }: { block: ContentBlock }) {
+function RenderBlock({ block, lessonId }: { block: ContentBlock; lessonId?: string }) {
   const { type, src, caption } = block;
 
   if (type === "quiz") {
@@ -75,7 +75,7 @@ function RenderBlock({ block }: { block: ContentBlock }) {
     <figure className="space-y-2">
       <div className="overflow-hidden border border-line bg-black">
         {type === "video" ? (
-          <VideoBlock block={block} />
+          <VideoBlock block={block} lessonId={lessonId} />
         ) : (
           // image + gif
           // eslint-disable-next-line @next/next/no-img-element
@@ -90,13 +90,17 @@ function RenderBlock({ block }: { block: ContentBlock }) {
 }
 
 /* ---------- video with watch-tracking wired to the store ---------- */
-function VideoBlock({ block }: { block: ContentBlock }) {
-  const { videoProgress, setVideoProgress } = useStore();
+function VideoBlock({ block, lessonId }: { block: ContentBlock; lessonId?: string }) {
+  const { videoProgress, setVideoProgress, completed } = useStore();
+  // Enforce no-skipping only until the lesson is complete — after that the
+  // video plays like a normal one (free seeking, no tracking).
+  const enforce = lessonId ? !completed.has(lessonId) : false;
   return (
     <VideoPlayer
       src={block.src}
       initialProgress={videoProgress[block.id] ?? 0}
       onProgress={(f) => setVideoProgress(block.id, f)}
+      enforce={enforce}
     />
   );
 }

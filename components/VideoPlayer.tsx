@@ -15,13 +15,16 @@ export function VideoPlayer({
   src,
   initialProgress = 0,
   onProgress,
+  enforce = true,
 }: {
   src: string;
   initialProgress?: number;
   onProgress: (fraction: number) => void;
+  /** When false (lesson already complete), seeking is unrestricted. */
+  enforce?: boolean;
 }) {
   if (isYouTube(src)) {
-    return <YouTubeWatch videoId={youtubeId(src)!} onProgress={onProgress} />;
+    return <YouTubeWatch videoId={youtubeId(src)!} onProgress={onProgress} enforce={enforce} />;
   }
   if (isEmbed(src)) {
     // Vimeo / Mux / other — can't measure progress, render normally.
@@ -36,7 +39,14 @@ export function VideoPlayer({
       </div>
     );
   }
-  return <Html5Watch src={src} initialProgress={initialProgress} onProgress={onProgress} />;
+  return (
+    <Html5Watch
+      src={src}
+      initialProgress={initialProgress}
+      onProgress={onProgress}
+      enforce={enforce}
+    />
+  );
 }
 
 /* ---------- HTML5 <video>: bucket-count watched seconds, block seek-ahead ---------- */
@@ -44,10 +54,12 @@ function Html5Watch({
   src,
   initialProgress,
   onProgress,
+  enforce,
 }: {
   src: string;
   initialProgress: number;
   onProgress: (f: number) => void;
+  enforce: boolean;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const maxReached = useRef(0); // furthest position genuinely reached (sec)
@@ -57,6 +69,8 @@ function Html5Watch({
   const cb = useRef(onProgress);
   cb.current = onProgress;
   const initRef = useRef(initialProgress);
+  const enforceRef = useRef(enforce);
+  enforceRef.current = enforce;
 
   useEffect(() => {
     const v = ref.current;
@@ -81,17 +95,21 @@ function Html5Watch({
       }
     };
     const onTime = () => {
+      if (!enforceRef.current) return; // lesson done — don't track or restrict
       if (!v.paused && !v.seeking && v.currentTime > maxReached.current) {
         maxReached.current = v.currentTime;
       }
       report();
     };
     const onEnded = () => {
+      if (!enforceRef.current) return;
       maxReached.current = v.duration || maxReached.current;
       report();
     };
     // Block fast-forwarding: snap back if they seek beyond what they've reached.
+    // Skipped once the lesson is complete, so re-watching is unrestricted.
     const onSeeking = () => {
+      if (!enforceRef.current) return;
       const allowed = maxReached.current + 1.5;
       if (v.currentTime > allowed) v.currentTime = Math.max(0, allowed);
     };
@@ -143,9 +161,11 @@ function loadYouTubeApi(): Promise<YouTubeNamespace> {
 function YouTubeWatch({
   videoId,
   onProgress,
+  enforce,
 }: {
   videoId: string;
   onProgress: (f: number) => void;
+  enforce: boolean;
 }) {
   const holder = useRef<HTMLDivElement>(null);
   const maxReached = useRef(0); // furthest position genuinely played (sec)
@@ -154,6 +174,8 @@ function YouTubeWatch({
   // would rebuild the player and restart the video)
   const cb = useRef(onProgress);
   cb.current = onProgress;
+  const enforceRef = useRef(enforce);
+  enforceRef.current = enforce;
 
   useEffect(() => {
     let player: YouTubePlayer | null = null;
@@ -191,6 +213,7 @@ function YouTubeWatch({
               timer && clearInterval(timer);
               // poll often enough to catch (and block) forward seeks
               timer = setInterval(() => {
+                if (!enforceRef.current) return; // lesson done — free seeking
                 const dur = player?.getDuration?.() ?? 0;
                 const t = player?.getCurrentTime?.() ?? 0;
                 if (dur <= 0) return;
