@@ -57,5 +57,13 @@ export async function GET(req: NextRequest) {
     users = withRoles.data;
   }
 
-  return NextResponse.json({ users: users ?? [] });
+  // mark which users are admins (owner or sub-admin) so the list can filter them
+  const { data: admins } = await supabaseAdmin.from("app_admins").select("email");
+  const adminSet = new Set((admins ?? []).map((a) => a.email.toLowerCase()));
+  const withAdmin = (users ?? []).map((u) => {
+    const row = u as { email?: string };
+    return { ...row, is_admin: adminSet.has((row.email ?? "").toLowerCase()) };
+  });
+
+  return NextResponse.json({ users: withAdmin });
 }

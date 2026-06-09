@@ -33,6 +33,7 @@ import {
   ArrowDownRight,
   FileDown,
   Share2,
+  Search,
 } from "lucide-react";
 import { exportReportPdf, exportReportImage, type ReportData } from "@/lib/report";
 import { POSITION_ROLES } from "@/lib/roles";
@@ -92,6 +93,7 @@ type UserRow = {
   created_at: string;
   role?: string;
   requested_role?: string | null;
+  is_admin?: boolean;
 };
 type KpiRow = {
   key: string;
@@ -494,11 +496,65 @@ function UsersList({
   limit?: number;
   onSetRole?: (userId: string, role: string) => void;
 }) {
-  const data = limit ? rows.slice(0, limit) : rows;
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState("all"); // "all" | "admins" | a position
+  // the full (expanded) list gets the search + filter toolbar; preview doesn't
+  const searchable = !limit;
+  const query = q.trim().toLowerCase();
+  const filtered = searchable
+    ? rows.filter((u) => {
+        if (filter === "admins" && !u.is_admin) return false;
+        if (filter !== "all" && filter !== "admins" && (u.role || "Lead") !== filter)
+          return false;
+        if (query && !`${u.name ?? ""} ${u.email ?? ""}`.toLowerCase().includes(query))
+          return false;
+        return true;
+      })
+    : rows;
+  const data = limit ? filtered.slice(0, limit) : filtered;
+
+  const toolbar = searchable ? (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="relative min-w-[12rem] flex-1">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search users by name or email…"
+          className="w-full rounded-lg border border-white/15 bg-white/[0.04] py-2 pl-9 pr-3 text-sm text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+        />
+      </div>
+      <select
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-nonstop"
+        title="Filter by position"
+      >
+        <option value="all" className="bg-[#15161a]">All positions</option>
+        <option value="admins" className="bg-[#15161a]">Admins</option>
+        {POSITION_ROLES.map((r) => (
+          <option key={r} value={r} className="bg-[#15161a]">
+            {r}
+          </option>
+        ))}
+      </select>
+    </div>
+  ) : null;
+  const search = toolbar;
+
   if (data.length === 0)
-    return <EmptyState label="No users have signed up yet." />;
+    return (
+      <div>
+        {search}
+        <EmptyState
+          label={query ? "No users match your search." : "No users have signed up yet."}
+        />
+      </div>
+    );
   return (
-    <ul className="space-y-2">
+    <div>
+      {search}
+      <ul className="space-y-2">
       {data.map((u) => {
         const name = u.name?.trim() || "—";
         const initial = (u.name?.trim() || u.email || "?").charAt(0).toUpperCase();
@@ -515,7 +571,14 @@ function UsersList({
               {initial}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-white">{name}</p>
+              <p className="flex items-center gap-2 truncate font-medium text-white">
+                <span className="truncate">{name}</span>
+                {u.is_admin && (
+                  <span className="shrink-0 rounded bg-nonstop/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-nonstop">
+                    Admin
+                  </span>
+                )}
+              </p>
               <p className="truncate text-xs text-white/55">{u.email}</p>
             </div>
 
@@ -559,7 +622,8 @@ function UsersList({
           + {rows.length - limit} more — expand to see all
         </li>
       )}
-    </ul>
+      </ul>
+    </div>
   );
 }
 
