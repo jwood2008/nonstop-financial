@@ -85,6 +85,14 @@ export function GooeyText({
       }
     }
 
+    // show the first word immediately so there's no blank lead-in
+    if (text1Ref.current && text2Ref.current) {
+      text1Ref.current.textContent = texts[texts.length - 1];
+      text2Ref.current.textContent = texts[0];
+      text1Ref.current.style.opacity = "0%";
+      text2Ref.current.style.opacity = "100%";
+    }
+
     animate();
 
     return () => {

@@ -12,7 +12,7 @@ import { GooeyText } from "@/components/ui/gooey-text-morphing";
  * gate it with sessionStorage ("nf.introSeen") to show only once per session.
  */
 const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
-const SECONDS_PER_WORD = 4;
+const SECONDS_PER_WORD = 3;
 const WORDS_MS = WORDS.length * SECONDS_PER_WORD * 1000; // ~4s per word
 const LOGO_MS = 2400; // logo hold
 const DOOR_MS = 1100; // garage-door slide
