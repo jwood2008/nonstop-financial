@@ -1,92 +1,13 @@
 import type { Course } from "./types";
-
-/** Helper to make placeholder blocks that say "VIDEO HERE" etc. */
-const ph = (
-  id: string,
-  type: "video" | "image" | "gif" | "text",
-  caption: string
-) => ({ id, type, src: "", caption });
+import { buildCourse } from "./curriculum";
 
 /**
- * Seed course — structure taken straight from the PRD (Insurance Foundations,
- * Product Training, Sales Training, Advanced Production). Every lesson ships
- * with empty placeholder blocks so an admin can drop in real media later.
+ * Seed course — built from the canonical NONSTOP FINANCIAL curriculum spec in
+ * lib/curriculum.ts (9 modules, each topic a lesson). Every lesson ships with
+ * empty placeholder blocks and PDF file slots so an admin can drop in real
+ * media and documents later. Edit lib/curriculum.ts to change the structure.
  */
-export const SEED_COURSE: Course = {
-  id: "nonstop-core",
-  title: "Producer Development Path",
-  modules: [
-    {
-      id: "m-foundations",
-      title: "Insurance Foundations",
-      lessons: [
-        {
-          id: "l-intro",
-          title: "Introduction",
-          duration: "6 min",
-          blocks: [
-            ph("b1", "video", "Welcome to NonStop — intro video"),
-            ph("b2", "text", "Add a short welcome message for new agents here."),
-          ],
-          files: [],
-          transcript:
-            "Welcome to NonStop Financial. In this lesson we cover what to expect from the Producer Development Path and how to get certified fast.",
-        },
-        {
-          id: "l-licensing",
-          title: "Licensing",
-          duration: "12 min",
-          blocks: [
-            ph("b1", "video", "Licensing walkthrough"),
-            ph("b2", "image", "State licensing requirements chart"),
-          ],
-          files: [],
-          transcript:
-            "Licensing requirements vary by state. This lesson walks through the path to getting and maintaining your life license.",
-        },
-      ],
-    },
-    {
-      id: "m-product",
-      title: "Product Training",
-      lessons: [
-        {
-          id: "l-iul",
-          title: "IUL",
-          duration: "18 min",
-          blocks: [
-            ph("b1", "video", "How Indexed Universal Life works"),
-            ph("b2", "gif", "Cash value accumulation animation"),
-            ph("b3", "text", "Key talking points for IUL with business owners."),
-          ],
-          files: [],
-          transcript:
-            "Indexed Universal Life ties cash value growth to a market index with a floor and a cap. Here is how to position it.",
-        },
-        { id: "l-term", title: "Term", duration: "9 min", blocks: [ph("b1", "video", "Term life fundamentals")], files: [], transcript: "Term life is the simplest, most affordable coverage. Learn when it's the right fit." },
-        { id: "l-whole", title: "Whole Life", duration: "14 min", blocks: [ph("b1", "video", "Whole life & guaranteed value")], files: [], transcript: "Whole life offers guaranteed cash value and lifelong coverage." },
-      ],
-    },
-    {
-      id: "m-sales",
-      title: "Sales Training",
-      lessons: [
-        { id: "l-prospect", title: "Prospecting", duration: "11 min", blocks: [ph("b1", "video", "Building a pipeline that never runs dry")], files: [], transcript: "Prospecting is the lifeblood of production. Build daily habits that fill your pipeline." },
-        { id: "l-objection", title: "Objection Handling", duration: "16 min", blocks: [ph("b1", "video", "Advanced Objection Handling"), ph("b2", "text", "The 5 most common objections and your responses.")], files: [], transcript: "When a prospect says premiums are too expensive, reframe around value and risk." },
-        { id: "l-closing", title: "Closing", duration: "13 min", blocks: [ph("b1", "video", "Closing with confidence")], files: [], transcript: "Closing is simply the natural conclusion of a great presentation." },
-      ],
-    },
-    {
-      id: "m-advanced",
-      title: "Advanced Production",
-      lessons: [
-        { id: "l-referrals", title: "Referrals", duration: "10 min", blocks: [ph("b1", "video", "Turning clients into a referral engine")], files: [], transcript: "Referrals are the highest-converting leads you will ever work." },
-        { id: "l-recruiting", title: "Recruiting", duration: "15 min", blocks: [ph("b1", "video", "Recruiting elite producers")], files: [], transcript: "Recruiting multiplies your impact. Learn to identify and attract talent." },
-        { id: "l-team", title: "Team Building", duration: "12 min", blocks: [ph("b1", "video", "Building a high-performance team")], files: [], transcript: "A great team compounds. Build culture, accountability, and momentum." },
-      ],
-    },
-  ],
-};
+export const SEED_COURSE: Course = buildCourse();
 
 /* ===================== ANALYTICS (mock, Instagram-style) ===================== */
 

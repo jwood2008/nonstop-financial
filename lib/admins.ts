@@ -13,20 +13,21 @@
 // truth when Supabase isn't configured, and the seed for the app_admins table
 // (supabase/admins.sql). Sub-admins added at runtime live in Supabase, not here.
 export const ADMIN_EMAILS: string[] = [
-  "greg@lecgroup.com",
-  "jay@nonstopfinancial.com",
-  "admin@nonstopfinancial.com",
+  "james.l.wood@outlook.com",
+  "jameslwood589@gmail.com",
 ];
 
 /** The identity used by the fake "click to login" flow. */
-export const DEMO_EMAIL = "greg@lecgroup.com";
+export const DEMO_EMAIL = "james.l.wood@outlook.com";
 
 /**
  * DEMO BYPASS — TEMPORARY. When true, the "Log in" button skips real auth and
  * drops straight into the app as an admin (owner) for live demos / call walk-
  * throughs. Set back to false to restore the normal Supabase login.
+ *
+ * Off for production: login/signup go through real Supabase auth.
  */
-export const DEMO_MODE = true;
+export const DEMO_MODE = false;
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;

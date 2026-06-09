@@ -218,7 +218,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         (window.localStorage.getItem(LS_THEME) as Theme | null)) ||
         "dark") as Theme
     );
-    setCourse(read<Course>(LS_COURSE, SEED_COURSE));
+    // Use the saved course only if it matches the current curriculum version
+    // (SEED_COURSE.id). An older saved course — e.g. the previous
+    // "Producer Development Path" — is automatically replaced by the new one,
+    // so curriculum changes show up without a manual "Reset to default".
+    const savedCourse = read<Course | null>(LS_COURSE, null);
+    setCourse(savedCourse?.id === SEED_COURSE.id ? savedCourse : SEED_COURSE);
     setPersonas(read<Persona[]>(LS_PERSONAS, SEED_PERSONAS));
     setQuizResults(read<Record<string, QuizAttempt[]>>(LS_QUIZ, {}));
     setProfile({ ...DEFAULT_PROFILE, ...read(LS_PROFILE, DEFAULT_PROFILE) });

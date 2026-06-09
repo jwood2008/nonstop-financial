@@ -159,6 +159,49 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* =====================================================================
+   INTERACTIVE FEEDBACK — make every control feel clickable
+   Tailwind v4's preflight resets <button> to `cursor: default`, which makes
+   the whole app feel dead since nearly every button is a raw <button> with
+   inline classes. Restore the pointer, stop tap-selecting the label, and add
+   a snappy press so controls respond like native ones. Mirrors the TierraDex
+   button feel (Apple HIG: select-none, ~120ms, comfortable hit target).
+   ===================================================================== */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[role="button"],
+label[for],
+summary,
+select,
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+button,
+[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* Press feedback: a subtle, snappy scale-down on active. Inline transforms
+   (e.g. framer-motion whileTap) take precedence, so animated buttons keep
+   their own motion. Skipped when the user prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):active,
+  [role="button"]:not([aria-disabled="true"]):active,
+  a[role="button"]:active {
+    transform: scale(0.97);
+  }
+}
+
+/* =====================================================================
    LIGHT MODE
    The app is authored dark-first (raw `text-white`, `bg-[#33343a]`, …),
    so light mode is delivered in two layers under `html.light`:
