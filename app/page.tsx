@@ -22,7 +22,11 @@ const PAPER = "#f5f4f1";
  *
  *   const HERO_PHOTOS = ["/hero/jay-1.jpg", "/hero/jay-2.jpg"];
  */
-const HERO_PHOTOS: string[] = ["/hero/jay-1.jpg"];
+const HERO_PHOTOS: string[] = [
+  "/hero/jay-1.jpg",
+  "/hero/jay-2.jpg",
+  "/hero/jay-3.jpg",
+];
 
 // soft edge-fade so a rectangular photo blends into the band (no hard box)
 const PHOTO_MASK =
@@ -97,7 +101,7 @@ export default function Landing() {
       {/* hero — cycling mentor photos as the background, text over the left */}
       <section
         id="home"
-        className="relative isolate flex min-h-[calc(88svh-3.5rem)] items-center overflow-hidden"
+        className="relative isolate flex min-h-[calc(94svh-3.5rem)] items-center overflow-hidden"
       >
         <HeroSlideshow />
         <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#0d0e11] via-[#0d0e11]/90 to-[#0d0e11]/20 lg:to-transparent" />
