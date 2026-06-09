@@ -118,11 +118,9 @@ export default function Landing() {
               NonStop Financial
             </span>
             <h1 className="mt-5 font-display text-5xl font-bold leading-[0.98] text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-6xl">
-              Forging legacies.
+              Building wealth.
               <br />
-              Building elite
-              <br />
-              producers.
+              Creating leaders.
             </h1>
             <p className="mt-5 max-w-md text-base leading-relaxed text-white/75">
               The human-centered agency network. Invest in mentorship, hand down
