@@ -12,7 +12,7 @@ import { GooeyText } from "@/components/ui/gooey-text-morphing";
  * gate it with sessionStorage ("nf.introSeen") to show only once per session.
  */
 const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
-const SECONDS_PER_WORD = 1.75;
+const SECONDS_PER_WORD = 1.5;
 // cut to the logo while the last word is still up, before the loop wraps back
 const WORDS_MS = (WORDS.length - 0.5) * SECONDS_PER_WORD * 1000;
 const LOGO_MS = 2400; // logo hold
