@@ -97,7 +97,7 @@ export default function Landing() {
       {/* hero — cycling mentor photos as the background, text over the left */}
       <section
         id="home"
-        className="relative isolate flex min-h-[calc(100svh-3.5rem)] items-center overflow-hidden"
+        className="relative isolate flex min-h-[calc(88svh-3.5rem)] items-center overflow-hidden"
       >
         <HeroSlideshow />
         <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#0d0e11] via-[#0d0e11]/90 to-[#0d0e11]/20 lg:to-transparent" />
