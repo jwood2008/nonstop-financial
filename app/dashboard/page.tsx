@@ -149,42 +149,76 @@ function Dashboard() {
       {/* ── Introduction hero (top) ── */}
       <IntroHero next={next} progress={progress} done={done} total={total} />
 
-      {/* ── module "category" cards ── */}
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
-        {course.modules.map((m, i) => {
-          const md = m.lessons.filter((l) => completed.has(l.id)).length;
-          return (
-            <Link
-              key={m.id}
-              href="/learn"
-              className="group relative block min-h-[220px] overflow-hidden rounded-3xl border border-white/10 bg-[#33343a] p-5"
-            >
-              <div className="relative z-10">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40">
-                  Module {i + 1}
-                </p>
-                <h3 className="mt-1 max-w-[80%] text-xl font-bold leading-tight text-white">
-                  {m.title}
-                </h3>
-              </div>
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={MODULE_IMAGES[i % MODULE_IMAGES.length]}
-                  alt=""
-                  className="h-32 w-full max-w-[150px] rounded-xl object-cover opacity-25 transition-all duration-500 group-hover:scale-110 group-hover:opacity-40"
-                />
-              </div>
-              <div className="absolute bottom-4 left-5 z-10 font-mono text-xs tabular-nums text-white/55">
-                {md}/{m.lessons.length} lessons
-              </div>
-              <div className="absolute bottom-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:bg-nonstop">
-                <ArrowUpRight className="h-5 w-5" />
-              </div>
-            </Link>
+      {/* ── module cards — finished modules drop out; the rest shift over
+             into an "up next" queue ── */}
+      {(() => {
+        const remaining = course.modules
+          .map((m, i) => ({ m, i }))
+          .filter(
+            ({ m }) =>
+              !(
+                m.lessons.length > 0 &&
+                m.lessons.every((l) => completed.has(l.id))
+              )
           );
-        })}
-      </div>
+
+        if (remaining.length === 0) {
+          return (
+            <div className="mt-6 rounded-3xl border border-white/10 bg-[#33343a] p-8 text-center">
+              <p className="text-xl font-bold text-white">
+                Every module complete 🎉
+              </p>
+              <p className="mt-1.5 text-sm text-white/55">
+                You&apos;ve finished the whole path.{" "}
+                <Link
+                  href="/learn"
+                  className="font-semibold text-nonstop underline-offset-4 hover:underline"
+                >
+                  Review lessons →
+                </Link>
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+            {remaining.map(({ m, i }) => {
+              const md = m.lessons.filter((l) => completed.has(l.id)).length;
+              return (
+                <Link
+                  key={m.id}
+                  href="/learn"
+                  className="group relative block min-h-[220px] overflow-hidden rounded-3xl border border-white/10 bg-[#33343a] p-5"
+                >
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40">
+                      Module {i + 1}
+                    </p>
+                    <h3 className="mt-1 max-w-[80%] text-xl font-bold leading-tight text-white">
+                      {m.title}
+                    </h3>
+                  </div>
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={MODULE_IMAGES[i % MODULE_IMAGES.length]}
+                      alt=""
+                      className="h-32 w-full max-w-[150px] rounded-xl object-cover opacity-25 transition-all duration-500 group-hover:scale-110 group-hover:opacity-40"
+                    />
+                  </div>
+                  <div className="absolute bottom-4 left-5 z-10 font-mono text-xs tabular-nums text-white/55">
+                    {md}/{m.lessons.length} lessons
+                  </div>
+                  <div className="absolute bottom-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:bg-nonstop">
+                    <ArrowUpRight className="h-5 w-5" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* ── widgets ── */}
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
