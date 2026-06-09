@@ -163,7 +163,12 @@ function YouTubeWatch({
 
     loadYouTubeApi().then((YT) => {
       if (cancelled || !holder.current) return;
-      player = new YT.Player(holder.current, {
+      // Mount the player into a child element React doesn't render, so React
+      // never reconciles (and disturbs) YouTube's iframe on re-renders.
+      const inner = document.createElement("div");
+      inner.className = "h-full w-full";
+      holder.current.appendChild(inner);
+      player = new YT.Player(inner, {
         videoId,
         playerVars: { rel: 0, modestbranding: 1 },
         events: {
@@ -195,6 +200,8 @@ function YouTubeWatch({
       } catch {
         /* ignore */
       }
+      // remove any leftover player node so a video change starts clean
+      if (holder.current) holder.current.innerHTML = "";
     };
   }, [videoId]);
 
