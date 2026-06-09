@@ -30,10 +30,6 @@ const HERO_PHOTOS: string[] = [
   "/hero/jay-3.jpg",
 ];
 
-// soft edge-fade so a rectangular photo blends into the band (no hard box)
-const PHOTO_MASK =
-  "radial-gradient(112% 92% at 50% 36%, #000 54%, transparent 100%)";
-
 const PILLARS = [
   [
     "For mentors",
@@ -152,10 +148,7 @@ export default function Landing() {
       <section id="mentorship" style={{ background: PAPER }}>
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 lg:grid-cols-[0.8fr_1.2fr] lg:py-32">
           <div className="w-full max-w-sm">
-            <div
-              className="relative aspect-[4/5] w-full"
-              style={{ WebkitMaskImage: PHOTO_MASK, maskImage: PHOTO_MASK }}
-            >
+            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl shadow-[0_35px_70px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_45px_85px_-20px_rgba(0,0,0,0.5)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/hero/jay-1.jpg"
