@@ -356,7 +356,7 @@ function HeroSlideshow() {
 
   return (
     <div className="absolute inset-0 -z-20" style={{ background: INK }}>
-      <div className="absolute inset-0 lg:left-auto lg:w-[62%]">
+      <div className="absolute inset-0">
         {slides.map((src, idx) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
