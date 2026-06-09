@@ -2,21 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useStore } from "@/lib/store";
 import { Logo, NonstopMark } from "@/components/Brand";
 import { ArrowRight, Check } from "lucide-react";
 
 const PRICE = process.env.NEXT_PUBLIC_PRICE_LABEL || "$497";
 
+// Landing alternates ink (near-black) and paper (warm off-white) bands for a
+// professional, editorial feel. Colors are explicit so the page reads the same
+// regardless of the in-app theme. Orange is the single accent.
+const INK = "#0d0e11";
+const PAPER = "#f5f4f1";
+
 /**
  * Mentor photos that crossfade behind the hero. Drop more shots of Jay (and
  * other mentors) into `public/hero/` and add their paths here — they cycle
- * automatically. Each should read well on the right with text over the left.
+ * automatically.
  *
- *   const HERO_PHOTOS = ["/hero/jay-1.jpg", "/hero/jay-2.jpg", "/hero/jay-3.jpg"];
+ *   const HERO_PHOTOS = ["/hero/jay-1.jpg", "/hero/jay-2.jpg"];
  */
 const HERO_PHOTOS: string[] = ["/hero/jay-1.jpg"];
+
+// soft edge-fade so a rectangular photo blends into the band (no hard box)
+const PHOTO_MASK =
+  "radial-gradient(112% 92% at 50% 36%, #000 54%, transparent 100%)";
 
 const PILLARS = [
   [
@@ -33,6 +43,14 @@ const PILLARS = [
   ],
 ];
 
+const INCLUDED = [
+  "9 modules — Welcome, Mindset, Licensing, Contracting, Product, Sales, Systems, Recruiting, Scale",
+  "AI coaching grounded in each lesson",
+  "Cold-call roleplay scored in real time",
+  "Certification + tracked progress",
+  "Downloadable scripts, checklists & worksheets",
+];
+
 export default function Landing() {
   const { ready, loggedIn } = useStore();
   const router = useRouter();
@@ -42,33 +60,33 @@ export default function Landing() {
   }, [ready, loggedIn, router]);
 
   return (
-    <div className="min-h-screen bg-ink">
-      {/* top bar */}
-      <header className="border-b border-line">
+    <div className="min-h-screen" style={{ background: INK }}>
+      {/* top bar (over the dark hero) */}
+      <header>
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <Logo />
-          <nav className="flex items-center gap-1 sm:gap-3">
+          <nav className="flex items-center gap-1 sm:gap-4">
             <a
               href="#mentorship"
-              className="hidden px-3 py-1.5 text-sm font-medium text-muted transition hover:text-white sm:inline"
+              className="hidden px-2 py-1.5 text-sm font-medium text-white/55 transition hover:text-white sm:inline"
             >
               Mentorship
             </a>
             <a
               href="#academy"
-              className="hidden px-3 py-1.5 text-sm font-medium text-muted transition hover:text-white sm:inline"
+              className="hidden px-2 py-1.5 text-sm font-medium text-white/55 transition hover:text-white sm:inline"
             >
               Academy
             </a>
             <Link
               href="/login"
-              className="px-3 py-1.5 text-sm font-medium text-muted transition hover:text-white"
+              className="px-2 py-1.5 text-sm font-medium text-white/55 transition hover:text-white"
             >
               Log in
             </Link>
             <Link
               href="/signup"
-              className="bg-nonstop px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
+              className="bg-nonstop px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
             >
               Apply for Academy
             </Link>
@@ -79,16 +97,15 @@ export default function Landing() {
       {/* hero — cycling mentor photos as the background, text over the left */}
       <section
         id="home"
-        className="relative isolate overflow-hidden border-b border-line"
+        className="relative isolate flex min-h-[calc(100svh-3.5rem)] items-center overflow-hidden"
       >
         <HeroSlideshow />
-        {/* scrims: dark on the left for legible text, soft fade up from bottom */}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-ink via-ink/90 to-ink/20 lg:to-transparent" />
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-ink via-ink/30 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-r from-[#0d0e11] via-[#0d0e11]/90 to-[#0d0e11]/20 lg:to-transparent" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-[#0d0e11] via-[#0d0e11]/30 to-transparent" />
 
-        <div className="mx-auto max-w-6xl px-6 py-24 lg:py-36">
+        <div className="mx-auto w-full max-w-6xl px-6 py-20">
           <div className="max-w-xl">
-            <span className="inline-flex items-center gap-2 border border-line-2 bg-ink/40 px-2.5 py-1 text-[11px] font-medium uppercase tracking-widest text-muted backdrop-blur-sm">
+            <span className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">
               <NonstopMark className="h-3.5 w-4" />
               NonStop Financial
             </span>
@@ -103,7 +120,7 @@ export default function Landing() {
               The human-centered agency network. Invest in mentorship, hand down
               expertise, and grow together.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-wrap items-center gap-5">
               <Link
                 href="/signup"
                 className="group inline-flex items-center gap-2 bg-nonstop px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
@@ -125,32 +142,35 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* mentorship — Jay's bio */}
-      <section id="mentorship" className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 lg:grid-cols-[0.8fr_1.2fr]">
-          <div className="relative aspect-[4/5] w-full max-w-sm overflow-hidden border border-line-2 bg-surface">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/hero/jay-1.jpg"
-              alt="Jay — NonStop Financial"
-              className="h-full w-full object-cover object-[center_25%]"
-            />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-              <p className="font-display text-lg font-bold text-white">Jay</p>
-              <p className="text-xs uppercase tracking-widest text-white/70">
+      {/* mentorship — PAPER band, Jay blended in */}
+      <section id="mentorship" style={{ background: PAPER }}>
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 lg:grid-cols-[0.8fr_1.2fr] lg:py-32">
+          <div className="w-full max-w-sm">
+            <div
+              className="relative aspect-[4/5] w-full"
+              style={{ WebkitMaskImage: PHOTO_MASK, maskImage: PHOTO_MASK }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/hero/jay-1.jpg"
+                alt="Jay — NonStop Financial"
+                className="absolute inset-0 h-full w-full object-cover object-[center_25%]"
+              />
+            </div>
+            <div className="mt-4">
+              <p className="font-display text-xl font-bold text-zinc-900">Jay</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                 Founder &amp; Mentor
               </p>
             </div>
           </div>
 
           <div className="max-w-xl">
-            <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-nonstop">
-              Mentorship
-            </h2>
-            <p className="mt-4 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+            <Eyebrow>Mentorship</Eyebrow>
+            <p className="mt-6 font-display text-3xl font-bold leading-[1.05] text-zinc-900 sm:text-5xl">
               Talent is everywhere. Mentorship is rare.
             </p>
-            <div className="mt-5 space-y-4 text-base leading-relaxed text-muted">
+            <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-zinc-600">
               <p>
                 Jay built NonStop on a simple belief: most agents don&apos;t fail
                 for lack of talent — they fail because no one ever handed them the
@@ -163,66 +183,56 @@ export default function Landing() {
                 systems that work, and a team that wants you to win.
               </p>
             </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {["Field-tested", "Carrier-appointed", "Team-built"].map((t) => (
-                <span
-                  key={t}
-                  className="border border-line-2 px-3 py-1.5 text-xs font-medium text-muted"
-                >
-                  {t}
-                </span>
-              ))}
-            </div>
+            <p className="mt-7 text-xs uppercase tracking-[0.2em] text-zinc-400">
+              Field-tested · Carrier-appointed · Team-built
+            </p>
           </div>
         </div>
       </section>
 
-      {/* how NonStop works — pillars */}
-      <section className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl gap-px border-x border-line bg-line sm:grid-cols-3">
-          {PILLARS.map(([title, desc]) => (
-            <div key={title} className="bg-ink p-7">
-              <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-nonstop">
-                {title}
-              </h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{desc}</p>
-            </div>
-          ))}
+      {/* how NonStop works — INK band */}
+      <section style={{ background: INK }}>
+        <div className="mx-auto max-w-6xl px-6 py-24">
+          <Eyebrow>How it works</Eyebrow>
+          <div className="mt-10 grid gap-10 sm:grid-cols-3">
+            {PILLARS.map(([title, desc]) => (
+              <div key={title}>
+                <h3 className="font-display text-xl font-bold text-white">
+                  {title}
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-white/55">
+                  {desc}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* academy — the course + pricing + the free-for-NonStop hook */}
-      <section id="academy" className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-20">
+      {/* academy — PAPER band: course, price, free-for-NonStop hook */}
+      <section id="academy" style={{ background: PAPER }}>
+        <div className="mx-auto max-w-6xl px-6 py-24 lg:py-32">
           <div className="max-w-2xl">
-            <h2 className="text-xs font-bold uppercase tracking-[0.18em] text-nonstop">
-              The Academy
-            </h2>
-            <p className="mt-4 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">
+            <Eyebrow>The Academy</Eyebrow>
+            <p className="mt-6 font-display text-3xl font-bold leading-[1.05] text-zinc-900 sm:text-5xl">
               Everything you need to produce.
             </p>
-            <p className="mt-4 text-base leading-relaxed text-muted">
+            <p className="mt-5 text-[15px] leading-relaxed text-zinc-600">
               The NonStop Academy is the full producer path — nine modules from
               licensing to advanced production, plus AI coaching, cold-call
               roleplay, and certification. Learn it once, use it for a career.
             </p>
           </div>
 
-          <div className="mt-8 grid gap-px border border-line bg-line lg:grid-cols-2">
-            {/* what's included */}
-            <div className="bg-ink p-7">
-              <h3 className="font-display text-lg font-bold text-white">
+          <div className="mt-14 grid gap-14 lg:grid-cols-2">
+            {/* what's inside */}
+            <div>
+              <h3 className="font-display text-lg font-bold text-zinc-900">
                 What&apos;s inside
               </h3>
-              <ul className="mt-4 space-y-2.5 text-sm text-muted">
-                {[
-                  "9 modules — Welcome, Mindset, Licensing, Contracting, Product, Sales, Systems, Recruiting, Scale",
-                  "AI coaching grounded in each lesson",
-                  "Cold-call roleplay scored in real time",
-                  "Certification + tracked progress",
-                  "Downloadable scripts, checklists & worksheets",
-                ].map((item) => (
-                  <li key={item} className="flex gap-2.5">
+              <ul className="mt-5 space-y-3.5 text-sm text-zinc-600">
+                {INCLUDED.map((item) => (
+                  <li key={item} className="flex gap-3">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-nonstop" />
                     <span>{item}</span>
                   </li>
@@ -231,39 +241,41 @@ export default function Landing() {
             </div>
 
             {/* pricing + the hook */}
-            <div className="flex flex-col bg-ink p-7">
+            <div>
               <div className="flex items-baseline gap-2">
-                <span className="font-display text-4xl font-bold text-white">
+                <span className="font-display text-5xl font-bold text-zinc-900">
                   {PRICE}
                 </span>
-                <span className="text-sm text-muted-2">one-time · full access</span>
+                <span className="text-sm text-zinc-500">
+                  one-time · full access
+                </span>
               </div>
 
-              <div className="mt-5 border border-nonstop/40 bg-nonstop/5 p-5">
-                <p className="font-display text-lg font-bold text-nonstop">
-                  Part of NonStop? It&apos;s free.
+              <div className="mt-7 border-l-2 border-nonstop pl-5">
+                <p className="font-display text-xl font-bold text-nonstop">
+                  Free for the team.
                 </p>
-                <p className="mt-2 text-sm leading-relaxed text-muted">
+                <p className="mt-2 max-w-sm text-sm leading-relaxed text-zinc-600">
                   Agents on the NonStop team get the entire Academy included —{" "}
-                  <span className="text-white line-through">{PRICE}</span>{" "}
-                  <span className="font-semibold text-white">$0</span>. Join the
-                  network, get mentored, and the course is on us.
+                  <span className="text-zinc-900 line-through">{PRICE}</span>{" "}
+                  <span className="font-semibold text-zinc-900">$0</span>. Join
+                  the network, get mentored, and the course is on us.
                 </p>
               </div>
 
-              <div className="mt-auto flex flex-col gap-3 pt-6">
+              <div className="mt-9 flex flex-wrap items-center gap-6">
                 <Link
                   href="/signup"
-                  className="group inline-flex items-center justify-center gap-2 bg-nonstop px-5 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
+                  className="group inline-flex items-center gap-2 bg-nonstop px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
                 >
-                  Join NonStop — get it free
+                  A part of NonStop? It&apos;s free
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
                 </Link>
                 <Link
                   href="/signup"
-                  className="inline-flex items-center justify-center border border-line-2 px-5 py-3 text-sm font-semibold text-white transition hover:border-zinc-500"
+                  className="text-sm text-zinc-500 transition hover:text-zinc-900"
                 >
-                  Buy the Academy — {PRICE}
+                  Or buy the Academy — {PRICE}
                 </Link>
               </div>
             </div>
@@ -271,19 +283,19 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* closing CTA + login */}
-      <section className="border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-20 text-center">
-          <h2 className="font-display text-4xl font-bold leading-tight text-white sm:text-5xl">
-            Part of NonStop?
+      {/* closing CTA — INK band */}
+      <section style={{ background: INK }}>
+        <div className="mx-auto max-w-6xl px-6 py-28 text-center">
+          <h2 className="font-display text-4xl font-bold leading-[1.05] text-white sm:text-6xl">
+            A part of NonStop?
             <br />
             Sign up for free.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-muted">
+          <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-white/60">
             Join Jay&apos;s network and the Academy is included — no {PRICE}, just
             mentorship and the tools to produce.
           </p>
-          <div className="mt-8 flex flex-col items-center gap-3">
+          <div className="mt-9 flex flex-col items-center gap-4">
             <Link
               href="/signup"
               className="group inline-flex items-center gap-2 bg-nonstop px-7 py-3.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
@@ -293,7 +305,7 @@ export default function Landing() {
             </Link>
             <Link
               href="/login"
-              className="text-sm text-muted-2 transition hover:text-white"
+              className="text-sm text-white/50 transition hover:text-white"
             >
               Already have an account?{" "}
               <span className="font-semibold text-white underline-offset-4 hover:underline">
@@ -304,10 +316,25 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-6 py-8 text-xs text-muted-2 sm:flex-row sm:items-center">
+      <footer
+        className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-6 py-10 text-xs text-white/40 sm:flex-row sm:items-center"
+        style={{ background: INK }}
+      >
         <span>© 2026 NonStop Financial. All rights reserved.</span>
         <span>Mentorship-first agency network for life insurance producers.</span>
       </footer>
+    </div>
+  );
+}
+
+/* ---------- editorial eyebrow (orange rule + label) ---------- */
+function Eyebrow({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="h-px w-10 bg-nonstop/60" />
+      <span className="text-xs font-bold uppercase tracking-[0.22em] text-nonstop">
+        {children}
+      </span>
     </div>
   );
 }
@@ -324,8 +351,7 @@ function HeroSlideshow() {
   }, [slides.length]);
 
   return (
-    <div className="absolute inset-0 -z-20 bg-ink">
-      {/* photo layer: full-bleed on mobile, anchored to the right on desktop */}
+    <div className="absolute inset-0 -z-20" style={{ background: INK }}>
       <div className="absolute inset-0 lg:left-auto lg:w-[62%]">
         {slides.map((src, idx) => (
           // eslint-disable-next-line @next/next/no-img-element
@@ -340,7 +366,6 @@ function HeroSlideshow() {
         ))}
       </div>
 
-      {/* slide dots */}
       {slides.length > 1 && (
         <div className="absolute bottom-5 right-5 z-10 flex gap-1.5">
           {slides.map((_, idx) => (
