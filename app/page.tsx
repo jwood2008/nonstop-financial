@@ -301,15 +301,15 @@ export default function Landing() {
         photo="/hero/jay-1.jpg"
       />
 
-      {/* closing CTA — INK band */}
-      <section style={{ background: INK }}>
+      {/* closing CTA — PAPER band */}
+      <section style={{ background: PAPER }}>
         <div className="mx-auto max-w-6xl px-6 py-28 text-center">
-          <h2 className="font-display text-4xl font-bold leading-[1.05] text-white sm:text-6xl">
+          <h2 className="font-display text-4xl font-bold leading-[1.05] text-zinc-900 sm:text-6xl">
             A part of NonStop?
             <br />
             Sign up for free.
           </h2>
-          <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-white/60">
+          <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-zinc-600">
             Join Jay&apos;s network and the Academy is included — no {PRICE}, just
             mentorship and the tools to produce.
           </p>
@@ -323,10 +323,10 @@ export default function Landing() {
             </Link>
             <Link
               href="/login"
-              className="text-sm text-white/50 transition hover:text-white"
+              className="text-sm text-zinc-500 transition hover:text-zinc-900"
             >
               Already have an account?{" "}
-              <span className="font-semibold text-white underline-offset-4 hover:underline">
+              <span className="font-semibold text-zinc-900 underline-offset-4 hover:underline">
                 Log in
               </span>
             </Link>

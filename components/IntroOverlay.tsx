@@ -52,13 +52,13 @@ export function IntroOverlay() {
   return (
     <div
       onClick={lift}
-      role="button"
-      tabIndex={-1}
       aria-label="Enter the site"
-      className={`fixed inset-0 z-[80] flex cursor-pointer flex-col items-center justify-center bg-white transition-transform ease-[cubic-bezier(0.76,0,0.24,1)] ${
-        leaving ? "-translate-y-full" : "translate-y-0"
-      }`}
-      style={{ transitionDuration: `${DOOR_MS}ms` }}
+      className="fixed inset-0 z-[80] flex cursor-pointer flex-col items-center justify-center bg-white"
+      style={{
+        transform: leaving ? "translateY(-100%)" : "translateY(0)",
+        transition: `transform ${DOOR_MS}ms cubic-bezier(0.76, 0, 0.24, 1)`,
+        willChange: "transform",
+      }}
     >
       {/* branding */}
       <div className="absolute top-9 flex items-center gap-2.5">
