@@ -4,69 +4,92 @@ import { useEffect, useState } from "react";
 import { GooeyText } from "@/components/ui/gooey-text-morphing";
 
 /**
- * First-visit intro. A white "welcome" screen morphs through a few minimalist
- * words (GooeyText), then the panel slides up like a garage door to reveal the
- * landing page. Shows once per browser session; respects reduced-motion and
- * lets the visitor click to skip.
+ * First-visit intro. A white screen shows minimalist words morphing inside a
+ * modern card (GooeyText), ends on the NonStop logo, then the whole panel
+ * slides up like a garage door to reveal the landing page.
+ *
+ * NOTE: currently plays on every visit so it's easy to design. Before launch,
+ * gate it with sessionStorage ("nf.introSeen") to show only once per session.
  */
-const WORDS = ["Welcome", "Mentorship", "Legacy", "Family", "NonStop"];
-const HOLD_MS = 5200; // time the words play before the door lifts
-const DOOR_MS = 950; // garage-door slide duration
+const WORDS = ["Welcome", "Mentorship", "Legacy", "Family"];
+const WORDS_MS = 7000; // how long the words morph before the logo
+const LOGO_MS = 2400; // logo hold
+const DOOR_MS = 1100; // garage-door slide
 
 export function IntroOverlay() {
-  const [done, setDone] = useState(false);
+  const [stage, setStage] = useState<"words" | "logo">("words");
   const [leaving, setLeaving] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const finish = () => {
-    try {
-      sessionStorage.setItem("nf.introSeen", "1");
-    } catch {
-      /* ignore */
-    }
+  const lift = () => {
     setLeaving(true);
     window.setTimeout(() => setDone(true), DOOR_MS);
   };
 
   useEffect(() => {
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem("nf.introSeen") === "1";
-    } catch {
-      /* ignore */
-    }
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (seen || reduced) {
+    if (reduced) {
       setDone(true);
       return;
     }
-    const t = window.setTimeout(finish, HOLD_MS);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const t1 = window.setTimeout(() => setStage("logo"), WORDS_MS);
+    const t2 = window.setTimeout(() => setLeaving(true), WORDS_MS + LOGO_MS);
+    const t3 = window.setTimeout(
+      () => setDone(true),
+      WORDS_MS + LOGO_MS + DOOR_MS
+    );
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
   }, []);
 
   if (done) return null;
 
   return (
     <div
-      onClick={finish}
-      role="button"
-      tabIndex={-1}
-      aria-label="Enter the site"
-      className={`fixed inset-0 z-[80] flex cursor-pointer flex-col items-center justify-center bg-white transition-transform ease-[cubic-bezier(0.76,0,0.24,1)] ${
+      className={`fixed inset-0 z-[80] flex flex-col items-center justify-center bg-white transition-transform ease-[cubic-bezier(0.76,0,0.24,1)] ${
         leaving ? "-translate-y-full" : "translate-y-0"
       }`}
       style={{ transitionDuration: `${DOOR_MS}ms` }}
     >
-      <GooeyText
-        texts={WORDS}
-        morphTime={1}
-        cooldownTime={0.35}
-        className="h-[120px] w-full"
-        textClassName="text-black font-display tracking-tight text-5xl sm:text-7xl"
-      />
-      <p className="absolute bottom-10 text-[11px] font-medium uppercase tracking-[0.3em] text-black/40">
-        Click to enter
-      </p>
+      {/* branding */}
+      <div className="absolute top-9 flex items-center gap-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/mark-color.png" alt="" className="h-6 w-auto" />
+        <span className="text-[11px] font-bold uppercase tracking-[0.32em] text-black/70">
+          NonStop Financial
+        </span>
+      </div>
+
+      {/* modern box */}
+      <div className="relative flex h-[230px] w-[min(90vw,560px)] items-center justify-center rounded-[28px] bg-white shadow-[0_30px_80px_-25px_rgba(0,0,0,0.35)] ring-1 ring-black/[0.06]">
+        {stage === "words" ? (
+          <GooeyText
+            texts={WORDS}
+            morphTime={1.1}
+            cooldownTime={1.1}
+            className="h-[120px] w-full"
+            textClassName="text-black font-display tracking-tight text-5xl sm:text-7xl"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/brand/logo-vertical-black.png"
+            alt="NonStop Financial"
+            className="h-28 w-auto sm:h-32"
+            style={{ animation: "introFade 600ms ease both" }}
+          />
+        )}
+      </div>
+
+      <button
+        onClick={lift}
+        className="absolute bottom-10 text-[11px] font-medium uppercase tracking-[0.3em] text-black/40 transition hover:text-black/70"
+      >
+        Enter →
+      </button>
     </div>
   );
 }

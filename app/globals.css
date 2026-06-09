@@ -110,6 +110,18 @@ body {
   color-scheme: dark;
 }
 
+/* Intro: gentle fade/rise used for the logo reveal at the end of the splash. */
+@keyframes introFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Smoothly glide to in-page anchors (e.g. the landing nav) instead of jumping. */
 html {
   scroll-behavior: smooth;
