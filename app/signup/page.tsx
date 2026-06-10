@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useStore, ageBracket } from "@/lib/store";
+import { useStore, ageBracket, ageFromBirthdate } from "@/lib/store";
 import { ArrowRight, Loader2, MailCheck } from "lucide-react";
 import { AuthShell, AuthField, authInputCls } from "@/components/AuthShell";
 
@@ -13,7 +13,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [age, setAge] = useState("");
+  const [birthdate, setBirthdate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false); // confirmation email sent screen
@@ -23,12 +23,12 @@ export default function SignupPage() {
     if (ready && loggedIn) router.replace("/dashboard");
   }, [ready, loggedIn, router]);
 
-  const ageNum = parseInt(age, 10);
+  const ageNum = ageFromBirthdate(birthdate); // age is derived — never typed
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const res = await signUp({ name, email, password, age: ageNum });
+    const res = await signUp({ name, email, password, birthdate });
     if (!res.ok) {
       setError(res.error);
       setBusy(false);
@@ -123,22 +123,19 @@ export default function SignupPage() {
               className={authInputCls}
             />
           </AuthField>
-          <AuthField label="Age">
+          <AuthField label="Birthday">
             <input
-              type="number"
-              inputMode="numeric"
-              min={13}
-              max={120}
-              value={age}
-              onChange={(e) => setAge(e.target.value)}
-              placeholder="—"
+              type="date"
+              value={birthdate}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setBirthdate(e.target.value)}
               className={authInputCls}
             />
           </AuthField>
         </div>
-        {age && ageNum >= 13 && ageNum <= 120 && (
+        {birthdate && ageNum >= 13 && ageNum <= 120 && (
           <p className="-mt-1 text-[11px] text-muted-2">
-            You&apos;ll be counted in the{" "}
+            You&apos;re {ageNum} — counted in the{" "}
             <span className="font-semibold text-muted">{ageBracket(ageNum)}</span>{" "}
             audience bracket.
           </p>

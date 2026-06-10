@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,9 +16,10 @@ import type {
   Role,
   BlockType,
   QuizAttempt,
+  Spotlight,
 } from "./types";
 import type { Persona } from "./personas";
-import { SEED_COURSE } from "./data";
+import { SEED_COURSE, DEFAULT_SPOTLIGHTS } from "./data";
 import { SEED_PERSONAS } from "./personas";
 import { DEMO_EMAIL, isAdminEmail } from "./admins";
 import { supabase, isSupabaseConfigured, track } from "./supabase";
@@ -35,6 +37,10 @@ const LS_PROFILE = "nf.profile";
 const LS_THEME = "nf.theme"; // "dark" | "light"
 const LS_ACCOUNTS = "nf.accounts"; // { [emailLower]: Account }
 const LS_VIDEO = "nf.videoProgress"; // { [blockId]: fraction watched 0..1 }
+const LS_SPOTLIGHTS = "nf.spotlights"; // Spotlight[]
+
+/** course_content row id that holds the dashboard Spotlight cards. */
+const SPOTLIGHTS_DOC_ID = "spotlights";
 
 type Theme = "dark" | "light" | "system";
 
@@ -44,6 +50,7 @@ type Account = {
   password: string;
   name: string;
   age: number;
+  birthdate?: string;
 };
 
 type AuthResult =
@@ -63,10 +70,23 @@ const DEFAULT_PROFILE = {
   avatar: "",
   phone: "",
   title: "",
-  age: 0,
+  age: 0, // derived from birthdate when one is set
+  birthdate: "", // ISO yyyy-mm-dd — collected at signup
   role: DEFAULT_ROLE as string,
   requestedRole: null as string | null,
 };
+
+/** Current age from an ISO birthdate (yyyy-mm-dd). 0 when invalid/empty. */
+export function ageFromBirthdate(iso: string): number {
+  if (!iso) return 0;
+  const b = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(+b)) return 0;
+  const now = new Date();
+  let age = now.getFullYear() - b.getFullYear();
+  const m = now.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) age--;
+  return age;
+}
 
 /** Bucket a raw age into the brackets shown in the analytics audience widget. */
 export function ageBracket(age: number): string {
@@ -88,7 +108,8 @@ interface Store {
     name: string;
     email: string;
     password: string;
-    age: number;
+    /** ISO yyyy-mm-dd — age is derived from this, here and in Settings. */
+    birthdate: string;
   }) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   resendConfirmation: (email: string) => Promise<AuthResult>;
@@ -124,6 +145,7 @@ interface Store {
     phone: string;
     title: string;
     age: number;
+    birthdate: string;
     role: string;
     requestedRole: string | null;
   };
@@ -150,6 +172,12 @@ interface Store {
   updateModuleTitle: (moduleId: string, title: string) => void;
   addLesson: (moduleId: string) => string;
   removeLesson: (lessonId: string) => void;
+
+  // dashboard spotlights (admin-editable: photo, copy, click-through URL)
+  spotlights: Spotlight[];
+  addSpotlight: () => string;
+  updateSpotlight: (id: string, patch: Partial<Spotlight>) => void;
+  removeSpotlight: (id: string) => void;
 
   // roleplay personas (admin-editable)
   personas: Persona[];
@@ -206,6 +234,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [role, setRoleState] = useState<Role>("user");
   const [course, setCourse] = useState<Course>(SEED_COURSE);
+  const [spotlights, setSpotlights] = useState<Spotlight[]>(DEFAULT_SPOTLIGHTS);
   const [personas, setPersonas] = useState<Persona[]>(SEED_PERSONAS);
   const [quizResults, setQuizResults] = useState<Record<string, QuizAttempt[]>>(
     {}
@@ -220,6 +249,84 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [hasPaid, setHasPaid] = useState(false);
   const [paidReady, setPaidReady] = useState(false); // has the paid check resolved?
 
+  // Guards the profile→Supabase sync: until the DB profile has been loaded at
+  // least once for this session, the sync effect must not run — otherwise it
+  // can race ahead of loadProfile and upsert the empty DEFAULT_PROFILE over
+  // the user's real name/age/phone.
+  const profileLoadedRef = useRef(false);
+  // Same idea for the remote course/progress sync (see loadRemote below).
+  const remoteLoadedForRef = useRef<string | null>(null); // user id already loaded
+  const courseSyncedRef = useRef<string | null>(null); // JSON of last loaded/saved course
+  const spotlightsSyncedRef = useRef<string | null>(null);
+  const progressLoadedRef = useRef(false);
+  const progressSyncedRef = useRef<string | null>(null);
+
+  // Pull the published curriculum and this user's progress from Supabase.
+  // Course: the DB copy is the source of truth (admin edits propagate to
+  // everyone). Progress: merged with local state — completed is a union,
+  // video progress takes the furthest point, quiz attempts are combined.
+  const loadRemote = async (uid: string) => {
+    if (!supabase || remoteLoadedForRef.current === uid) return;
+    remoteLoadedForRef.current = uid;
+
+    const [{ data: cc }, { data: sp }, { data: pr }] = await Promise.all([
+      supabase
+        .from("course_content")
+        .select("content")
+        .eq("id", SEED_COURSE.id)
+        .maybeSingle(),
+      supabase
+        .from("course_content")
+        .select("content")
+        .eq("id", SPOTLIGHTS_DOC_ID)
+        .maybeSingle(),
+      supabase.from("user_progress").select("*").eq("user_id", uid).maybeSingle(),
+    ]);
+
+    if (cc?.content) {
+      const remote = cc.content as Course;
+      if (remote.id === SEED_COURSE.id) {
+        setCourse(remote);
+        courseSyncedRef.current = JSON.stringify(remote);
+      }
+    }
+
+    if (Array.isArray(sp?.content)) {
+      const remote = sp.content as Spotlight[];
+      setSpotlights(remote);
+      spotlightsSyncedRef.current = JSON.stringify(remote);
+    }
+
+    if (pr) {
+      const remoteDone = (pr.completed as string[]) ?? [];
+      setCompleted((prev) => new Set([...prev, ...remoteDone]));
+      const remoteVideo = (pr.video_progress as Record<string, number>) ?? {};
+      setVideoProgressState((prev) => {
+        const merged = { ...prev };
+        for (const [k, v] of Object.entries(remoteVideo)) {
+          merged[k] = Math.max(merged[k] ?? 0, v);
+        }
+        return merged;
+      });
+      const remoteQuiz = (pr.quiz_results as Record<string, QuizAttempt[]>) ?? {};
+      setQuizResults((prev) => {
+        const merged: Record<string, QuizAttempt[]> = { ...prev };
+        for (const [k, attempts] of Object.entries(remoteQuiz)) {
+          const seen = new Set((merged[k] ?? []).map((a) => a.at));
+          merged[k] = [
+            ...(merged[k] ?? []),
+            ...attempts.filter((a) => !seen.has(a.at)),
+          ].sort((a, b) => a.at - b.at);
+        }
+        return merged;
+      });
+      const remoteNotes = (pr.notes as Record<string, string>) ?? {};
+      // remote notes fill in anything this device doesn't have; local edits win
+      setNotes((prev) => ({ ...remoteNotes, ...prev }));
+    }
+    progressLoadedRef.current = true;
+  };
+
   // pull a logged-in user's profile row from Supabase into local state
   const loadProfile = async (uid: string) => {
     if (!supabase) return;
@@ -229,11 +336,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .select("*")
       .eq("id", uid)
       .maybeSingle();
+    profileLoadedRef.current = true;
     if (data)
       setProfile((p) => ({
         ...p,
         name: data.name ?? p.name,
-        age: data.age ?? p.age,
+        // age is derived from the birthday when we have one (stays current
+        // as years pass); the stored age is only a fallback for old rows
+        birthdate: data.birthdate ?? p.birthdate,
+        age: data.birthdate
+          ? ageFromBirthdate(data.birthdate)
+          : (data.age ?? p.age),
         phone: data.phone ?? p.phone,
         title: data.title ?? p.title,
         avatar: data.avatar ?? p.avatar,
@@ -279,6 +392,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // so curriculum changes show up without a manual "Reset to default".
     const savedCourse = read<Course | null>(LS_COURSE, null);
     setCourse(savedCourse?.id === SEED_COURSE.id ? savedCourse : SEED_COURSE);
+    setSpotlights(read<Spotlight[]>(LS_SPOTLIGHTS, DEFAULT_SPOTLIGHTS));
     setPersonas(read<Persona[]>(LS_PERSONAS, SEED_PERSONAS));
     setQuizResults(read<Record<string, QuizAttempt[]>>(LS_QUIZ, {}));
     setProfile({ ...DEFAULT_PROFILE, ...read(LS_PROFILE, DEFAULT_PROFILE) });
@@ -301,6 +415,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (user) {
         setEmail(user.email ?? null);
         void loadProfile(user.id);
+        void loadRemote(user.id);
       }
       setReady(true);
     });
@@ -319,6 +434,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (user) {
         setEmail(user.email ?? null);
         void loadProfile(user.id);
+        void loadRemote(user.id);
       } else {
         setEmail(null);
       }
@@ -336,6 +452,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (ready) window.localStorage.setItem(LS_PERSONAS, JSON.stringify(personas));
   }, [personas, ready]);
   useEffect(() => {
+    if (ready) window.localStorage.setItem(LS_SPOTLIGHTS, JSON.stringify(spotlights));
+  }, [spotlights, ready]);
+  useEffect(() => {
     if (ready) window.localStorage.setItem(LS_QUIZ, JSON.stringify(quizResults));
   }, [quizResults, ready]);
   useEffect(() => {
@@ -348,24 +467,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // sync profile edits back to Supabase (avatar stays local — too large for a row)
   useEffect(() => {
     if (!ready || !isSupabaseConfigured || !supabase || !email) return;
+    if (!profileLoadedRef.current) return; // DB profile not loaded yet — don't clobber it
     let cancelled = false;
     (async () => {
       const { data } = await supabase!.auth.getUser();
       const user = data.user;
       if (!user || cancelled) return;
-      await supabase!.from("profiles").upsert({
+      const base = {
         id: user.id,
         email: user.email,
         name: profile.name,
-        age: profile.age || null,
+        // keep the stored age fresh: recompute from the birthday when set
+        age:
+          (profile.birthdate ? ageFromBirthdate(profile.birthdate) : profile.age) ||
+          null,
         phone: profile.phone,
         title: profile.title,
-      });
+      };
+      const { error } = await supabase!
+        .from("profiles")
+        .upsert({ ...base, birthdate: profile.birthdate || null });
+      // graceful fallback while the birthdate column migration hasn't run yet
+      if (error && /birthdate/i.test(error.message)) {
+        await supabase!.from("profiles").upsert(base);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [profile.name, profile.age, profile.phone, profile.title, ready, email]);
+  }, [profile.name, profile.age, profile.birthdate, profile.phone, profile.title, ready, email]);
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_NOTES, JSON.stringify(notes));
   }, [notes, ready]);
@@ -407,6 +537,79 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setRoleState(canManage ? "admin" : "user");
   }, [canManage]);
+
+  // Publish curriculum edits to Supabase (staff only — RLS enforces it too).
+  // Debounced; skipped when the course matches what's already saved, and when
+  // embedded data-URL media makes the JSON too large to ship in one request.
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !canManage) return;
+    const json = JSON.stringify(course);
+    if (json === courseSyncedRef.current) return;
+    if (json.length > 5_000_000) {
+      console.warn(
+        "[course sync] Course is too large to auto-publish (embedded uploads). " +
+          "Use external URLs for big media so edits sync to the team."
+      );
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { error } = await supabase!.from("course_content").upsert({
+        id: course.id,
+        content: course,
+        updated_by: email,
+      });
+      if (!error) courseSyncedRef.current = json;
+      else console.warn("[course sync] save failed:", error.message);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [course, ready, canManage, email]);
+
+  // Publish spotlight edits to Supabase (staff only — same table/policies as
+  // the course; stored under the fixed "spotlights" row id).
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !canManage) return;
+    const json = JSON.stringify(spotlights);
+    if (json === spotlightsSyncedRef.current) return;
+    if (json.length > 5_000_000) {
+      console.warn("[spotlights] too large to publish — use image URLs, not huge uploads.");
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { error } = await supabase!.from("course_content").upsert({
+        id: SPOTLIGHTS_DOC_ID,
+        content: spotlights,
+        updated_by: email,
+      });
+      if (!error) spotlightsSyncedRef.current = json;
+      else console.warn("[spotlights] save failed:", error.message);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [spotlights, ready, canManage, email]);
+
+  // Sync this user's progress to Supabase so it follows them across devices.
+  // Waits for the initial remote load (so we merge before we overwrite).
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !email) return;
+    if (!progressLoadedRef.current) return;
+    const payload = {
+      completed: [...completed],
+      video_progress: videoProgress,
+      quiz_results: quizResults,
+      notes,
+    };
+    const json = JSON.stringify(payload);
+    if (json === progressSyncedRef.current) return;
+    const t = setTimeout(async () => {
+      const { data } = await supabase!.auth.getUser();
+      const user = data.user;
+      if (!user) return;
+      const { error } = await supabase!
+        .from("user_progress")
+        .upsert({ user_id: user.id, ...payload });
+      if (!error) progressSyncedRef.current = json;
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [completed, videoProgress, quizResults, notes, ready, email]);
 
   const refreshPaid = async () => {
     if (!email || !isSupabaseConfigured || !supabase) {
@@ -501,34 +704,43 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
   const logout = () => {
     if (isSupabaseConfigured && supabase) void supabase.auth.signOut();
+    profileLoadedRef.current = false;
+    remoteLoadedForRef.current = null;
+    progressLoadedRef.current = false;
+    progressSyncedRef.current = null;
+    courseSyncedRef.current = null;
+    spotlightsSyncedRef.current = null;
     setEmail(null);
     window.localStorage.removeItem(LS_EMAIL);
     setProfile(DEFAULT_PROFILE);
     setRole("user");
   };
 
-  const signUp: Store["signUp"] = async ({ name, email: em, password, age }) => {
+  const signUp: Store["signUp"] = async ({ name, email: em, password, birthdate }) => {
     const key = em.trim().toLowerCase();
     if (!name.trim()) return { ok: false, error: "Enter your name." };
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(key))
       return { ok: false, error: "Enter a valid email address." };
     if (password.length < 6)
       return { ok: false, error: "Password must be at least 6 characters." };
-    if (!age || age < 13 || age > 120)
-      return { ok: false, error: "Enter a valid age (13–120)." };
+    const age = ageFromBirthdate(birthdate);
+    if (!birthdate || age < 13 || age > 120)
+      return { ok: false, error: "Enter a valid birthday (you must be at least 13)." };
 
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signUp({
         email: key,
         password,
         options: {
-          data: { name: name.trim(), age },
+          // age travels alongside the birthdate so the profiles trigger (and
+          // age-based analytics) keep working unchanged
+          data: { name: name.trim(), age, birthdate },
           emailRedirectTo:
             typeof window !== "undefined" ? window.location.origin : undefined,
         },
       });
       if (error) return { ok: false, error: error.message };
-      setProfile({ ...DEFAULT_PROFILE, name: name.trim(), age });
+      setProfile({ ...DEFAULT_PROFILE, name: name.trim(), age, birthdate });
       if (data.session?.user) {
         // confirmation disabled — straight in
         setEmail(data.session.user.email ?? key);
@@ -541,9 +753,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // local preview fallback
     if (accounts[key])
       return { ok: false, error: "An account with this email already exists." };
-    const account: Account = { email: key, password, name: name.trim(), age };
+    const account: Account = { email: key, password, name: name.trim(), age, birthdate };
     setAccounts((prev) => ({ ...prev, [key]: account }));
-    setProfile({ ...DEFAULT_PROFILE, name: account.name, age });
+    setProfile({ ...DEFAULT_PROFILE, name: account.name, age, birthdate });
     login(key);
     return { ok: true };
   };
@@ -577,7 +789,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (account) {
       if (account.password !== password)
         return { ok: false, error: "Incorrect password." };
-      setProfile((p) => ({ ...p, name: p.name || account.name, age: account.age }));
+      setProfile((p) => ({
+        ...p,
+        name: p.name || account.name,
+        age: account.birthdate ? ageFromBirthdate(account.birthdate) : account.age,
+        birthdate: account.birthdate ?? p.birthdate,
+      }));
       login(key);
       return { ok: true };
     }
@@ -822,6 +1039,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }));
       },
 
+      spotlights,
+      addSpotlight: () => {
+        const id = uid();
+        setSpotlights((prev) => [
+          ...prev,
+          { id, title: "New spotlight", description: "", href: "", image: "" },
+        ]);
+        return id;
+      },
+      updateSpotlight: (id, patch) =>
+        setSpotlights((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, ...patch } : s))
+        ),
+      removeSpotlight: (id) =>
+        setSpotlights((prev) => prev.filter((s) => s.id !== id)),
+
       personas,
       addPersona: (p) => setPersonas((prev) => [...prev, p]),
       updatePersona: (id, patch) =>
@@ -861,7 +1094,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       canCompleteLesson: lessonWatchSatisfied,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, personas, quizResults, notes, completed, videoProgress]
+    [ready, email, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, spotlights, personas, quizResults, notes, completed, videoProgress]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

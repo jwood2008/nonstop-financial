@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { useStore, type AdminRow } from "@/lib/store";
+import { useStore, ageFromBirthdate, type AdminRow } from "@/lib/store";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
 import { REQUESTABLE_ROLES, DEFAULT_ROLE } from "@/lib/roles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -143,18 +143,25 @@ function Settings() {
               className={inputCls}
             />
           </Field>
-          <Field label="Age">
+          <Field label="Birthday">
+            {/* age is computed from the birthday — no manual age input */}
             <input
-              type="number"
-              min={13}
-              max={120}
-              value={profile.age || ""}
+              type="date"
+              value={profile.birthdate || ""}
+              max={new Date().toISOString().slice(0, 10)}
               onChange={(e) =>
-                updateProfile({ age: parseInt(e.target.value, 10) || 0 })
+                updateProfile({
+                  birthdate: e.target.value,
+                  age: ageFromBirthdate(e.target.value),
+                })
               }
-              placeholder="—"
               className={inputCls}
             />
+            {profile.age > 0 && (
+              <p className="mt-1 text-[11px] text-muted-2">
+                Age {profile.age} — updated automatically.
+              </p>
+            )}
           </Field>
           <Field label="Email">
             <input value={email ?? ""} disabled className={`${inputCls} opacity-60`} />

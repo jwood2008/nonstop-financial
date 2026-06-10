@@ -1,5 +1,42 @@
-import type { Course } from "./types";
+import type { Course, Spotlight } from "./types";
 import { buildCourse } from "./curriculum";
+
+/** Default dashboard Spotlight cards — admins edit these in place on the
+ *  dashboard (photo, text, link); edits sync to Supabase for everyone. */
+export const DEFAULT_SPOTLIGHTS: Spotlight[] = [
+  {
+    id: "objection",
+    title: "Advanced Objection Handling",
+    description: "Reframe price and risk so prospects sell themselves.",
+    href: "/learn",
+    image:
+      "https://images.unsplash.com/photo-1551250928-243dc937c49d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  },
+  {
+    id: "iul",
+    title: "How IUL Works",
+    description: "Position indexed universal life with confidence.",
+    href: "/learn",
+    image:
+      "https://images.unsplash.com/photo-1551250928-e4a05afaed1e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  },
+  {
+    id: "closing",
+    title: "Closing with Confidence",
+    description: "Turn a great presentation into a signed application.",
+    href: "/learn",
+    image:
+      "https://images.unsplash.com/photo-1536735561749-fc87494598cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  },
+  {
+    id: "recruiting",
+    title: "Recruiting Elite Producers",
+    description: "Multiply your impact by building a team.",
+    href: "/learn",
+    image:
+      "https://images.unsplash.com/photo-1548324215-9133768e4094?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+  },
+];
 
 /**
  * Seed course — built from the canonical NONSTOP FINANCIAL curriculum spec in

@@ -6,9 +6,20 @@ import { AppShell } from "@/components/AppShell";
 import { ExpandablePanel } from "@/components/ui/expandable-card";
 import { Gallery4 } from "@/components/ui/gallery4";
 import { useStore, allLessons } from "@/lib/store";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { LEADERBOARD } from "@/lib/data";
 import { certificateDataUrl, downloadCertificatePdf } from "@/lib/certificate";
-import { ArrowRight, ArrowUpRight, Award, Download } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Award,
+  Download,
+  ImagePlus,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 
 const MODULE_IMAGES = [
   "https://images.unsplash.com/photo-1551250928-243dc937c49d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
@@ -17,24 +28,21 @@ const MODULE_IMAGES = [
   "https://images.unsplash.com/photo-1548324215-9133768e4094?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
 ];
 
-// Continue-training background slideshow. Scenic placeholders for now — to use
-// NonStop photos behind the "Nonstopable Nation" hero. Drop files in
-// /public/hero and list them here. Landscape/group shots read best wide.
-const HERO_IMAGES = [
-  "/hero/jay-8.jpg", // the team / nation group photo
-  "/hero/jay-9.jpg",
-  "/hero/jay-4.png", // podcast
-  "/hero/jay-7.png", // podcast
-  "/hero/jay-6.png",
-  "/hero/jay-1.png",
+// Continue-training background slideshow — NonStop photos behind the
+// "Nonstopable Nation" hero. Drop files in /public/hero and list them here.
+// `pos` is the CSS object-position: the hero band is wide and short, so
+// portrait shots need a top bias or heads get cropped out of frame.
+const HERO_IMAGES: { src: string; pos: string }[] = [
+  { src: "/hero/jay-8.jpg", pos: "center 35%" }, // group photo — heads at ~40% of frame
+  { src: "/hero/jay-9.jpg", pos: "center 42%" }, // aerial — crowd is mid-frame
+  { src: "/hero/jay-4.png", pos: "center 20%" }, // podcast (landscape) — face upper third
+  { src: "/hero/jay-7.png", pos: "center 22%" }, // podcast (landscape) — face upper third
+  { src: "/hero/jay-6.png", pos: "center 38%" }, // portrait — Jay's face at ~39% of frame
+  { src: "/hero/jay-1.png", pos: "center 35%" }, // portrait — Jay's face at ~36% of frame
 ];
 
-const SPOTLIGHT = [
-  { id: "objection", title: "Advanced Objection Handling", description: "Reframe price and risk so prospects sell themselves.", href: "/learn", image: MODULE_IMAGES[0] },
-  { id: "iul", title: "How IUL Works", description: "Position indexed universal life with confidence.", href: "/learn", image: MODULE_IMAGES[1] },
-  { id: "closing", title: "Closing with Confidence", description: "Turn a great presentation into a signed application.", href: "/learn", image: MODULE_IMAGES[2] },
-  { id: "recruiting", title: "Recruiting Elite Producers", description: "Multiply your impact by building a team.", href: "/learn", image: MODULE_IMAGES[3] },
-];
+// Spotlight cards now live in the store (admin-editable, synced to Supabase) —
+// see the SpotlightSection below for the in-place editor.
 
 /* ── completion certificate ── */
 function CourseCertificate({ done, total }: { done: number; total: number }) {
@@ -119,12 +127,8 @@ function ThinRing({ className = "" }: { className?: string }) {
   );
 }
 
-const MILESTONES = (progress: number) => [
-  { t: "Complete Insurance Foundations", done: true },
-  { t: "Pass your first product quiz (IUL)", done: true },
-  { t: "Finish Sales Training module", done: progress > 60 },
-  { t: "Earn Producer Certification", done: false },
-];
+// Milestones are derived from the user's REAL progress (module completion,
+// quiz passes) — never hardcoded, so a brand-new user starts at zero.
 
 export default function DashboardPage() {
   return (
@@ -247,21 +251,14 @@ function Dashboard() {
             label="Milestones"
             title="Milestones"
             tone="light"
-            preview={<Milestones progress={progress} />}
+            preview={<Milestones />}
           >
-            <Milestones progress={progress} expanded />
+            <Milestones expanded />
           </ExpandablePanel>
         </div>
       </div>
 
-      <section className="mt-10">
-        <Gallery4
-          title="Spotlight"
-          description="Featured training and what your team is working on this week."
-          items={SPOTLIGHT}
-          autoScroll
-        />
-      </section>
+      <SpotlightSection />
     </div>
   );
 }
@@ -271,7 +268,7 @@ function Dashboard() {
    swaps at peak blur, then resolves sharp from the other side (a "warp" /
    high-speed pan). The streak look needs *anisotropic* blur, so we drive an
    SVG horizontal Gaussian blur with rAF (CSS blur() is uniform = just a fade). */
-function HeroSlideshow({ images }: { images: string[] }) {
+function HeroSlideshow({ images }: { images: { src: string; pos: string }[] }) {
   const [i, setI] = useState(0);
   const iRef = useRef(0);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -376,15 +373,16 @@ function HeroSlideshow({ images }: { images: string[] }) {
         className="absolute inset-0"
         style={{ filter: "url(#hero-speedblur)", willChange: "transform, filter" }}
       >
-        {images.map((src, idx) => (
+        {images.map((img, idx) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={src}
-            src={src}
+            key={img.src}
+            src={img.src}
             alt=""
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}
+            style={{ objectPosition: img.pos }}
             className={`absolute inset-0 h-full w-full object-cover ${
               idx === i ? "opacity-100" : "opacity-0"
             }`}
@@ -517,12 +515,58 @@ function LessonList({
 }
 
 function Leaderboard({ expanded }: { expanded?: boolean }) {
-  const { profile, email } = useStore();
+  const { profile, email, course } = useStore();
+  const totalLessons = allLessons(course).length;
+
+  // Live data when Supabase is connected (last 30 days, same RPC as the
+  // analytics page); the hardcoded sample is only for the no-backend preview.
+  const [rows, setRows] = useState<typeof LEADERBOARD>(
+    isSupabaseConfigured ? [] : LEADERBOARD
+  );
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    let cancelled = false;
+    const day = (offset: number) =>
+      new Date(Date.now() - offset * 86400000).toISOString().slice(0, 10);
+    supabase
+      .rpc("leaderboard", { p_from: day(29), p_to: day(0) })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const live = data as {
+          name: string;
+          completed: number;
+          passes: number;
+          active_days: number;
+        }[];
+        setRows(
+          live.map((r) => ({
+            name: r.name,
+            streak: r.active_days,
+            certs: r.passes,
+            completion:
+              totalLessons > 0
+                ? Math.min(100, Math.round((r.completed / totalLessons) * 100))
+                : 0,
+          }))
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [totalLessons]);
+
+  if (rows.length === 0)
+    return (
+      <p className="py-2 text-sm text-white/50">
+        No completed lessons yet — the board fills in as the team trains.
+      </p>
+    );
+
   return (
     <div>
-      {LEADERBOARD.map((a, i) => {
-        const me = a.name === "James Wood";
-        const displayName = me && profile.name ? profile.name : a.name;
+      {rows.map((a, i) => {
+        const me = Boolean(profile.name) && a.name === profile.name;
+        const displayName = a.name;
         const initials =
           displayName
             .split(" ")
@@ -565,10 +609,175 @@ function Leaderboard({ expanded }: { expanded?: boolean }) {
   );
 }
 
-function Milestones({ progress, expanded }: { progress: number; expanded?: boolean }) {
+/* ── Spotlight (admin-editable cards: photo, copy, click-through URL) ── */
+function SpotlightSection() {
+  const { spotlights, canManage, addSpotlight, updateSpotlight, removeSpotlight } =
+    useStore();
+  const [editing, setEditing] = useState(false);
+
+  // uploaded photos become data-URLs; keep them small so the set still syncs
+  const onUpload = (id: string, file: File | undefined) => {
+    if (!file) return;
+    if (file.size > 1_500_000) {
+      alert("Keep spotlight photos under 1.5 MB — or paste an image URL instead.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => updateSpotlight(id, { image: String(reader.result) });
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <section className="mt-10">
+      <div className="relative">
+        {canManage && (
+          <button
+            onClick={() => setEditing((e) => !e)}
+            className={`absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+              editing
+                ? "border-nonstop bg-nonstop text-white"
+                : "border-white/15 bg-white/[0.04] text-white/70 hover:text-white"
+            }`}
+          >
+            {editing ? (
+              <>
+                <X className="h-3.5 w-3.5" /> Done
+              </>
+            ) : (
+              <>
+                <Pencil className="h-3.5 w-3.5" /> Edit spotlights
+              </>
+            )}
+          </button>
+        )}
+        <Gallery4
+          title="Spotlight"
+          description="Featured training and what your team is working on this week."
+          items={spotlights}
+          autoScroll={!editing}
+        />
+      </div>
+
+      {canManage && editing && (
+        <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-xs text-white/45">
+            Changes publish to everyone automatically. Links can go anywhere — a
+            lesson (<span className="font-mono">/learn</span>), an Instagram post, a
+            story, an article… External links open in a new tab.
+          </p>
+          {spotlights.map((s) => (
+            <div
+              key={s.id}
+              className="flex flex-wrap items-start gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-3"
+            >
+              {/* photo + upload */}
+              <div className="relative h-24 w-36 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+                {s.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={s.image} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[10px] uppercase tracking-wide text-white/35">
+                    No photo
+                  </div>
+                )}
+                <label className="absolute inset-x-0 bottom-0 flex cursor-pointer items-center justify-center gap-1 bg-black/65 py-1 text-[10px] font-semibold text-white/85 hover:text-white">
+                  <ImagePlus className="h-3 w-3" /> Upload
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => onUpload(s.id, e.target.files?.[0])}
+                  />
+                </label>
+              </div>
+
+              {/* fields */}
+              <div className="grid min-w-[16rem] flex-1 gap-2">
+                <input
+                  value={s.title}
+                  onChange={(e) => updateSpotlight(s.id, { title: e.target.value })}
+                  placeholder="Title"
+                  className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+                />
+                <input
+                  value={s.description}
+                  onChange={(e) =>
+                    updateSpotlight(s.id, { description: e.target.value })
+                  }
+                  placeholder="Short description"
+                  className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+                />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    value={s.href}
+                    onChange={(e) => updateSpotlight(s.id, { href: e.target.value })}
+                    placeholder="Link — https://instagram.com/… or /learn"
+                    className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+                  />
+                  <input
+                    value={s.image.startsWith("data:") ? "" : s.image}
+                    onChange={(e) => updateSpotlight(s.id, { image: e.target.value })}
+                    placeholder={
+                      s.image.startsWith("data:")
+                        ? "Uploaded photo (paste a URL to replace)"
+                        : "Image URL — https://…"
+                    }
+                    className="rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={() => removeSpotlight(s.id)}
+                title="Remove this spotlight"
+                className="rounded-lg border border-white/10 bg-white/[0.04] p-2 text-white/45 transition hover:border-red-400/40 hover:text-red-300"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => addSpotlight()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-xs font-semibold text-white/60 transition hover:border-nonstop hover:text-white"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add spotlight
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Milestones({ expanded }: { expanded?: boolean }) {
+  const { course, completed, quizResults } = useStore();
+  const lessons = allLessons(course);
+  const done = lessons.filter((l) => completed.has(l.id)).length;
+  const total = lessons.length;
+
+  const moduleDone = (m: { lessons: { id: string }[] } | undefined) =>
+    Boolean(m && m.lessons.length > 0 && m.lessons.every((l) => completed.has(l.id)));
+  const firstModule = course.modules[0];
+  const salesModule = course.modules.find((m) => /sales/i.test(m.title));
+  const quizPassed = Object.values(quizResults).some((attempts) =>
+    attempts.some((a) => a.percent >= 80)
+  );
+
+  const milestones = [
+    {
+      t: firstModule ? `Complete ${firstModule.title}` : "Complete your first module",
+      done: moduleDone(firstModule),
+    },
+    { t: "Pass your first quiz", done: quizPassed },
+    {
+      t: salesModule ? `Finish ${salesModule.title}` : "Reach 60% of the path",
+      done: salesModule ? moduleDone(salesModule) : total > 0 && done / total > 0.6,
+    },
+    { t: "Earn Producer Certification", done: total > 0 && done === total },
+  ];
+
   return (
     <div className="space-y-3.5">
-      {MILESTONES(progress).map((m, i) => (
+      {milestones.map((m, i) => (
         <div key={i} className="flex items-start gap-3 text-sm">
           {m.done ? (
             <ThinCheck className="mt-0.5 h-[18px] w-[18px] shrink-0 text-nonstop" />

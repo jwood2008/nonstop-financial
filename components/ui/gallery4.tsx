@@ -120,7 +120,13 @@ const Gallery4 = ({
               key={item.key}
               className="basis-[78%] pl-4 sm:basis-[44%] lg:basis-[30%]"
             >
-              <a href={item.href} className="group block">
+              {/* external links (Instagram, articles…) open in a new tab */}
+              <a
+                href={item.href || "#"}
+                target={/^https?:\/\//i.test(item.href) ? "_blank" : undefined}
+                rel={/^https?:\/\//i.test(item.href) ? "noopener noreferrer" : undefined}
+                className="group block"
+              >
                 <div className="relative h-56 overflow-hidden border border-line">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img

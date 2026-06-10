@@ -79,3 +79,15 @@ export interface Course {
   title: string;
   modules: Module[];
 }
+
+/** A dashboard Spotlight card — admin-editable, links anywhere (story,
+ *  Instagram, article…). Stored in Supabase so everyone sees the same set. */
+export interface Spotlight {
+  id: string;
+  title: string;
+  description: string;
+  /** Where the card leads on click — external URLs open in a new tab. */
+  href: string;
+  /** Background image: external URL or uploaded data-URL. */
+  image: string;
+}
