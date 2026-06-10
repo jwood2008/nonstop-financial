@@ -119,6 +119,19 @@ function Analytics() {
   const [presetId, setPresetId] = useState("30d");
   const [range, setRange] = useState<Range>(PRESETS[1].make());
 
+  // Admin-only data scope: everyone / one manager's team / one NonStop agent.
+  // Managers don't get a picker — the database locks them to their own team.
+  const [scope, setScope] = useState("all"); // "all" | "team:<id>" | "user:<id>"
+  const scopeParams = useMemo(
+    () =>
+      scope.startsWith("team:")
+        ? { p_manager: scope.slice(5) }
+        : scope.startsWith("user:")
+          ? { p_user: scope.slice(5) }
+          : {},
+    [scope]
+  );
+
   // With Supabase connected we show ONLY real data (empty until activity
   // exists). Sample data is used solely in the no-backend preview.
   const SAMPLE = !isSupabaseConfigured;
@@ -140,7 +153,7 @@ function Analytics() {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
     let cancelled = false;
-    const p = { p_from: range.from, p_to: range.to };
+    const p = { p_from: range.from, p_to: range.to, ...scopeParams };
     const prev = previousOf(range);
 
     (async () => {
@@ -151,7 +164,7 @@ function Analytics() {
         supabase!.rpc("age_distribution", p),
         supabase!.rpc("top_content", p),
         supabase!.rpc("leaderboard", p),
-        supabase!.rpc("leaderboard", { p_from: prev.from, p_to: prev.to }),
+        supabase!.rpc("leaderboard", { p_from: prev.from, p_to: prev.to, ...scopeParams }),
       ]);
       if (cancelled) return;
 
@@ -244,7 +257,7 @@ function Analytics() {
     return () => {
       cancelled = true;
     };
-  }, [range, lessons, totalLessons]);
+  }, [range, lessons, totalLessons, scopeParams]);
 
   // load the full user list (name + email) — admin-only server route
   useEffect(() => {
@@ -341,6 +354,44 @@ function Analytics() {
         meta={`${range.label} · vs previous period · NonStop Financial`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            {canBeAdmin ? (
+              <select
+                value={scope}
+                onChange={(e) => setScope(e.target.value)}
+                title="Whose data to show"
+                className="max-w-[15rem] rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white outline-none focus:border-nonstop"
+              >
+                <option value="all" className="bg-[#15161a]">
+                  Everyone
+                </option>
+                {users.some((u) => u.role === "Manager") && (
+                  <optgroup label="Manager teams" className="bg-[#15161a]">
+                    {users
+                      .filter((u) => u.role === "Manager")
+                      .map((m) => (
+                        <option key={m.id} value={`team:${m.id}`} className="bg-[#15161a]">
+                          Team · {m.name?.trim() || m.email}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+                {users.some((u) => (u.email ?? "").toLowerCase().endsWith("@nonstopglobal.co")) && (
+                  <optgroup label="NonStop agents" className="bg-[#15161a]">
+                    {users
+                      .filter((u) => (u.email ?? "").toLowerCase().endsWith("@nonstopglobal.co"))
+                      .map((u) => (
+                        <option key={u.id} value={`user:${u.id}`} className="bg-[#15161a]">
+                          {u.name?.trim() || u.email}
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+              </select>
+            ) : (
+              <span className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/55">
+                Scope: your team
+              </span>
+            )}
             <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1 text-xs">
               {PRESETS.map((p) => (
                 <button

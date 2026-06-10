@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { useStore, ageFromBirthdate, type AdminRow } from "@/lib/store";
+import { useStore, ageFromBirthdate, isNonstopEmail, type AdminRow } from "@/lib/store";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
 import { REQUESTABLE_ROLES, DEFAULT_ROLE } from "@/lib/roles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -166,6 +167,7 @@ function Settings() {
           <Field label="Email">
             <input value={email ?? ""} disabled className={`${inputCls} opacity-60`} />
           </Field>
+          {isNonstopEmail(email) && <ManagerField />}
         </div>
         <p className="mt-3 text-xs text-muted-2">Changes save automatically.</p>
       </Section>
@@ -525,6 +527,37 @@ function Section({
       <p className="mb-5 mt-0.5 text-sm text-muted">{subtitle}</p>
       {children}
     </section>
+  );
+}
+
+/* NonStop agents pick the Manager they report to — this drives whose
+   analytics their manager sees, so it's editable here as well as at signup. */
+function ManagerField() {
+  const { profile, updateProfile } = useStore();
+  const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    supabase.rpc("list_managers").then(({ data, error }) => {
+      if (!error && data) setManagers(data as { id: string; name: string }[]);
+    });
+  }, []);
+  return (
+    <Field label="Your manager">
+      <select
+        value={profile.managerId || ""}
+        onChange={(e) => updateProfile({ managerId: e.target.value })}
+        className={inputCls}
+      >
+        <option value="">
+          {managers.length ? "Select your manager…" : "No managers listed yet"}
+        </option>
+        {managers.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+          </option>
+        ))}
+      </select>
+    </Field>
   );
 }
 

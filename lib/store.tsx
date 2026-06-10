@@ -72,9 +72,15 @@ const DEFAULT_PROFILE = {
   title: "",
   age: 0, // derived from birthdate when one is set
   birthdate: "", // ISO yyyy-mm-dd — collected at signup
+  managerId: "", // which Manager this agent reports to (NonStop emails)
   role: DEFAULT_ROLE as string,
   requestedRole: null as string | null,
 };
+
+/** Email domain that makes a signup a NonStop agent (team features). */
+export const NONSTOP_DOMAIN = "nonstopglobal.co";
+export const isNonstopEmail = (em: string | null | undefined) =>
+  (em ?? "").toLowerCase().split("@")[1] === NONSTOP_DOMAIN;
 
 /** Current age from an ISO birthdate (yyyy-mm-dd). 0 when invalid/empty. */
 export function ageFromBirthdate(iso: string): number {
@@ -110,6 +116,8 @@ interface Store {
     password: string;
     /** ISO yyyy-mm-dd — age is derived from this, here and in Settings. */
     birthdate: string;
+    /** profile id of the Manager a NonStop agent reports to */
+    managerId?: string;
   }) => Promise<AuthResult>;
   signIn: (email: string, password: string) => Promise<AuthResult>;
   resendConfirmation: (email: string) => Promise<AuthResult>;
@@ -146,6 +154,7 @@ interface Store {
     title: string;
     age: number;
     birthdate: string;
+    managerId: string;
     role: string;
     requestedRole: string | null;
   };
@@ -350,6 +359,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         phone: data.phone ?? p.phone,
         title: data.title ?? p.title,
         avatar: data.avatar ?? p.avatar,
+        managerId: data.manager_id ?? p.managerId,
         role: data.role ?? p.role,
         requestedRole: data.requested_role ?? null,
       }));
@@ -484,18 +494,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         phone: profile.phone,
         title: profile.title,
       };
-      const { error } = await supabase!
-        .from("profiles")
-        .upsert({ ...base, birthdate: profile.birthdate || null });
-      // graceful fallback while the birthdate column migration hasn't run yet
-      if (error && /birthdate/i.test(error.message)) {
+      const { error } = await supabase!.from("profiles").upsert({
+        ...base,
+        birthdate: profile.birthdate || null,
+        manager_id: profile.managerId || null,
+      });
+      // graceful fallback while column migrations haven't run yet
+      if (error && /birthdate|manager_id/i.test(error.message)) {
         await supabase!.from("profiles").upsert(base);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [profile.name, profile.age, profile.birthdate, profile.phone, profile.title, ready, email]);
+  }, [profile.name, profile.age, profile.birthdate, profile.managerId, profile.phone, profile.title, ready, email]);
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_NOTES, JSON.stringify(notes));
   }, [notes, ready]);
@@ -716,7 +728,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setRole("user");
   };
 
-  const signUp: Store["signUp"] = async ({ name, email: em, password, birthdate }) => {
+  const signUp: Store["signUp"] = async ({ name, email: em, password, birthdate, managerId }) => {
     const key = em.trim().toLowerCase();
     if (!name.trim()) return { ok: false, error: "Enter your name." };
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(key))
@@ -734,13 +746,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         options: {
           // age travels alongside the birthdate so the profiles trigger (and
           // age-based analytics) keep working unchanged
-          data: { name: name.trim(), age, birthdate },
+          data: { name: name.trim(), age, birthdate, manager_id: managerId || "" },
           emailRedirectTo:
             typeof window !== "undefined" ? window.location.origin : undefined,
         },
       });
       if (error) return { ok: false, error: error.message };
-      setProfile({ ...DEFAULT_PROFILE, name: name.trim(), age, birthdate });
+      setProfile({
+        ...DEFAULT_PROFILE,
+        name: name.trim(),
+        age,
+        birthdate,
+        managerId: managerId || "",
+      });
       if (data.session?.user) {
         // confirmation disabled — straight in
         setEmail(data.session.user.email ?? key);

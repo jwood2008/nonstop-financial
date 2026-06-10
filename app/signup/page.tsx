@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useStore, ageBracket, ageFromBirthdate } from "@/lib/store";
+import { useStore, ageBracket, ageFromBirthdate, isNonstopEmail } from "@/lib/store";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { ArrowRight, Loader2, MailCheck } from "lucide-react";
 import { AuthShell, AuthField, authInputCls } from "@/components/AuthShell";
 
@@ -14,6 +15,18 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [birthdate, setBirthdate] = useState("");
+  const [managerId, setManagerId] = useState("");
+  const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
+
+  // NonStop agents pick who they report to — managers see their team's
+  // analytics, so this matters. The list loads once the email looks NonStop.
+  const nonstop = isNonstopEmail(email);
+  useEffect(() => {
+    if (!nonstop || managers.length > 0 || !isSupabaseConfigured || !supabase) return;
+    supabase.rpc("list_managers").then(({ data, error }) => {
+      if (!error && data) setManagers(data as { id: string; name: string }[]);
+    });
+  }, [nonstop, managers.length]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false); // confirmation email sent screen
@@ -28,7 +41,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     setBusy(true);
-    const res = await signUp({ name, email, password, birthdate });
+    const res = await signUp({ name, email, password, birthdate, managerId });
     if (!res.ok) {
       setError(res.error);
       setBusy(false);
@@ -139,6 +152,26 @@ export default function SignupPage() {
             <span className="font-semibold text-muted">{ageBracket(ageNum)}</span>{" "}
             audience bracket.
           </p>
+        )}
+
+        {/* NonStop agents report to a manager (drives team analytics) */}
+        {nonstop && (
+          <AuthField label="Who is your manager?">
+            <select
+              value={managerId}
+              onChange={(e) => setManagerId(e.target.value)}
+              className={authInputCls}
+            >
+              <option value="">
+                {managers.length ? "Select your manager…" : "No managers listed yet"}
+              </option>
+              {managers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </AuthField>
         )}
 
         {error && (
