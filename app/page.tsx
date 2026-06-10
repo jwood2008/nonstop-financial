@@ -32,6 +32,8 @@ const HERO_PHOTOS: string[] = [
   "/hero/jay-5.png",
   "/hero/jay-6.png",
   "/hero/jay-7.png",
+  "/hero/jay-8.jpg",
+  "/hero/jay-9.jpg",
 ];
 
 const PILLARS = [

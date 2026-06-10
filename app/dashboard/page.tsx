@@ -18,13 +18,15 @@ const MODULE_IMAGES = [
 ];
 
 // Continue-training background slideshow. Scenic placeholders for now — to use
-// Jay Maska / NonStop photos, drop files in /public/hero and swap these paths
-// (e.g. "/hero/1.jpg", "/hero/2.jpg", …).
+// NonStop photos behind the "Nonstopable Nation" hero. Drop files in
+// /public/hero and list them here. Landscape/group shots read best wide.
 const HERO_IMAGES = [
-  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1600&q=80",
-  "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
-  "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1600&q=80",
-  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1600&q=80",
+  "/hero/jay-8.jpg", // the team / nation group photo
+  "/hero/jay-9.jpg",
+  "/hero/jay-4.png", // podcast
+  "/hero/jay-7.png", // podcast
+  "/hero/jay-6.png",
+  "/hero/jay-1.png",
 ];
 
 const SPOTLIGHT = [
