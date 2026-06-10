@@ -49,7 +49,7 @@ begin
     coalesce(new.raw_user_meta_data ->> 'name', ''),
     nullif(new.raw_user_meta_data ->> 'age', '')::int,
     case
-      when lower(split_part(new.email, '@', 2)) like '%nonstop%' then 'Agent'
+      when lower(split_part(new.email, '@', 2)) = 'nonstopglobal.co' then 'Agent'
       else 'Lead'
     end
   )
