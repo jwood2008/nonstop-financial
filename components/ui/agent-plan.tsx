@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { CheckCircle2, Circle, CircleDotDashed } from "lucide-react";
+import { CheckCircle2, Circle, CircleDotDashed, Lock } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 
 export interface Subtask {
@@ -33,6 +33,8 @@ function StatusIcon({ status, size = 4 }: { status: string; size?: number }) {
     return <CheckCircle2 className={`${cls} text-nonstop`} />;
   if (status === "in-progress")
     return <CircleDotDashed className={`${cls} text-zinc-300`} />;
+  if (status === "locked")
+    return <Lock className={`${cls} text-muted-2`} />;
   return <Circle className={`${cls} text-muted-2`} />;
 }
 
@@ -98,6 +100,7 @@ export default function Plan({
                     <ul className="space-y-0.5 p-2">
                       {task.subtasks.map((s) => {
                         const active = s.id === activeSubtaskId;
+                        const locked = s.status === "locked";
                         return (
                           <motion.li
                             key={s.id}
@@ -106,27 +109,36 @@ export default function Plan({
                             className={`group flex items-center gap-2.5 pl-5 pr-2 transition ${
                               active
                                 ? "bg-surface-3 ring-1 ring-nonstop/40"
+                                : locked
+                                ? ""
                                 : "hover:bg-surface-2"
                             }`}
                           >
                             <motion.button
-                              whileTap={{ scale: 0.85 }}
+                              whileTap={locked ? undefined : { scale: 0.85 }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onToggleSubtask?.(task.id, s.id);
+                                if (!locked) onToggleSubtask?.(task.id, s.id);
                               }}
-                              className="shrink-0 py-2"
+                              disabled={locked}
+                              className="shrink-0 py-2 disabled:cursor-not-allowed"
                               aria-label="Toggle complete"
                             >
                               <StatusIcon status={s.status} size={4} />
                             </motion.button>
                             <button
-                              onClick={() => onSelectSubtask?.(task.id, s.id)}
-                              className="flex min-w-0 flex-1 items-center justify-between py-2 text-left"
+                              onClick={() => !locked && onSelectSubtask?.(task.id, s.id)}
+                              disabled={locked}
+                              title={
+                                locked
+                                  ? "Complete the previous lesson to unlock"
+                                  : undefined
+                              }
+                              className="flex min-w-0 flex-1 items-center justify-between py-2 text-left disabled:cursor-not-allowed"
                             >
                               <span
                                 className={`truncate text-sm ${
-                                  active ? "text-white" : "text-muted"
+                                  active ? "text-white" : locked ? "text-muted-2" : "text-muted"
                                 } ${
                                   s.status === "completed"
                                     ? "text-muted-2 line-through"

@@ -188,6 +188,16 @@ function Learn() {
     { t: "quiz", label: "Quiz", icon: ListChecks },
   ];
 
+  // Sequential unlock: a lesson stays locked until every lesson before it (in
+  // course order) is complete. The current (first incomplete) lesson is open;
+  // admins editing bypass this. No skipping ahead.
+  const firstIncompleteIdx = lessons.findIndex((l) => !completed.has(l.id));
+  const isLessonLocked = (id: string) => {
+    if (isAdmin && editing) return false;
+    if (firstIncompleteIdx === -1) return false; // everything done
+    return lessons.findIndex((l) => l.id === id) > firstIncompleteIdx;
+  };
+
   // course → agent-plan tracker shape (used in the sidebar when not editing)
   const planTasks = course.modules.map((m) => {
     const doneCount = m.lessons.filter((l) => completed.has(l.id)).length;
@@ -204,7 +214,11 @@ function Learn() {
       subtasks: m.lessons.map((l) => ({
         id: l.id,
         title: l.title,
-        status: completed.has(l.id) ? "completed" : "pending",
+        status: completed.has(l.id)
+          ? "completed"
+          : isLessonLocked(l.id)
+          ? "locked"
+          : "pending",
         meta: l.duration,
       })),
     };
@@ -292,8 +306,12 @@ function Learn() {
                 <Plan
                   tasks={planTasks}
                   activeSubtaskId={active.id}
-                  onSelectSubtask={(_m, lessonId) => setActiveId(lessonId)}
-                  onToggleSubtask={(_m, lessonId) => toggleComplete(lessonId)}
+                  onSelectSubtask={(_m, lessonId) => {
+                    if (!isLessonLocked(lessonId)) setActiveId(lessonId);
+                  }}
+                  onToggleSubtask={(_m, lessonId) => {
+                    if (!isLessonLocked(lessonId)) toggleComplete(lessonId);
+                  }}
                 />
               </div>
             )}
