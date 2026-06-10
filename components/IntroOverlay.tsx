@@ -12,7 +12,7 @@ import { GooeyText } from "@/components/ui/gooey-text-morphing";
  * gate it with sessionStorage ("nf.introSeen") to show only once per session.
  */
 const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
-const SECONDS_PER_WORD = 1.5;
+const SECONDS_PER_WORD = 1.2;
 // cut to the logo morph while the last word is still up, before the loop wraps
 const WORDS_MS = (WORDS.length - 0.5) * SECONDS_PER_WORD * 1000;
 const MORPH_MS = 1100; // last word → logo gooey morph
