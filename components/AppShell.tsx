@@ -14,8 +14,17 @@ import { LogOut, Menu, X, Settings } from "lucide-react";
  * dropdown.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { ready, loggedIn, logout, canManage, email, profile, hasPaid, paidReady } =
-    useStore();
+  const {
+    ready,
+    loggedIn,
+    logout,
+    canManage,
+    canBeAdmin,
+    email,
+    profile,
+    hasPaid,
+    paidReady,
+  } = useStore();
   const pathname = usePathname();
   const router = useRouter();
   const [menu, setMenu] = useState(false);
@@ -46,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/learn", label: "Training" },
     { href: "/practice", label: "Practice" },
     ...(canManage ? [{ href: "/admin", label: "Analytics" }] : []),
+    ...(canBeAdmin ? [{ href: "/requests", label: "Requests" }] : []),
   ];
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
