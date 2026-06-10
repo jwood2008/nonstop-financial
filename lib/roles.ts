@@ -3,12 +3,7 @@
  * "Lead". A user can *request* a different position in Settings, but only an
  * admin can actually set it (in the analytics Users panel).
  */
-export const POSITION_ROLES = [
-  "Lead",
-  "Agent",
-  "Senior Agent",
-  "Manager",
-] as const;
+export const POSITION_ROLES = ["Lead", "Agent", "Manager"] as const;
 
 export type PositionRole = (typeof POSITION_ROLES)[number];
 

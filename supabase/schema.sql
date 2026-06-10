@@ -34,18 +34,24 @@ create policy "profiles_update_own" on public.profiles
 
 -- 2. Auto-create a profile when a user signs up, pulling name/age from the
 --    metadata the app passes to supabase.auth.signUp({ options: { data }}).
+--    Position defaults by email: a NonStop email → 'Agent', otherwise 'Lead'.
+--    (Admins promote people to 'Manager' from the analytics Users panel.)
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, name, age)
+  insert into public.profiles (id, email, name, age, role)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data ->> 'name', ''),
-    nullif(new.raw_user_meta_data ->> 'age', '')::int
+    nullif(new.raw_user_meta_data ->> 'age', '')::int,
+    case
+      when lower(split_part(new.email, '@', 2)) like '%nonstop%' then 'Agent'
+      else 'Lead'
+    end
   )
   on conflict (id) do nothing;
   return new;

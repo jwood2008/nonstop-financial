@@ -106,7 +106,7 @@ type KpiRow = {
 const DOW_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 
 function Analytics() {
-  const { canBeAdmin, course } = useStore();
+  const { canBeAdmin, canManage, course } = useStore();
   const lessons = useMemo(() => allLessons(course), [course]);
   const totalLessons = lessons.length;
 
@@ -286,14 +286,16 @@ function Analytics() {
     );
   };
 
-  if (!canBeAdmin) {
+  if (!canManage) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-24 text-center">
         <Shield className="h-10 w-10 text-zinc-300" />
-        <h1 className="font-display text-2xl font-bold text-white">Admin only</h1>
+        <h1 className="font-display text-2xl font-bold text-white">
+          Admins & managers only
+        </h1>
         <p className="text-sm text-muted">
-          Analytics is available to admins. Ask an owner to grant you access in
-          Settings → Team Admins.
+          Analytics is available to admins and managers. Ask an admin to grant
+          you access.
         </p>
       </div>
     );
@@ -474,17 +476,19 @@ function Analytics() {
         </ExpandablePanel>
       </div>
 
-      {/* users */}
-      <div className="mt-6">
-        <ExpandablePanel
-          label="Users"
-          title={`Users · ${users.length}`}
-          tone="light"
-          preview={<UsersList rows={users} limit={6} />}
-        >
-          <UsersList rows={users} onSetRole={setUserRole} />
-        </ExpandablePanel>
-      </div>
+      {/* users — admins manage positions here; managers don't see this */}
+      {canBeAdmin && (
+        <div className="mt-6">
+          <ExpandablePanel
+            label="Users"
+            title={`Users · ${users.length}`}
+            tone="light"
+            preview={<UsersList rows={users} limit={6} />}
+          >
+            <UsersList rows={users} onSetRole={setUserRole} />
+          </ExpandablePanel>
+        </div>
+      )}
     </div>
   );
 }

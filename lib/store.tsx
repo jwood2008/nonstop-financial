@@ -98,6 +98,8 @@ interface Store {
   role: Role;
   setRole: (r: Role) => void;
   canBeAdmin: boolean;
+  /** Has the admin tools (edit + analytics): team admins or Managers. */
+  canManage: boolean;
 
   // admin tiers: owners can manage sub-admins; sub-admins can't
   adminStatus: AdminStatus;
@@ -372,12 +374,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const canBeAdmin = adminStatus !== null;
   const isOwner = adminStatus === "owner";
+  // Managers (a position) can edit content and see analytics, but they are not
+  // team admins (can't manage admins or assign positions).
+  const isManager = (profile.role || "").toLowerCase() === "manager";
+  // Who gets the admin tools (edit + analytics): team admins OR managers.
+  const canManage = canBeAdmin || isManager;
 
-  // Admin view is automatic: assigned admins are always in "admin" role, no
-  // manual toggle. Everyone else is a regular agent.
+  // The "admin" view (edit + analytics) is automatic for anyone who can manage.
+  // Everyone else is a regular user. No manual toggle.
   useEffect(() => {
-    setRoleState(canBeAdmin ? "admin" : "user");
-  }, [canBeAdmin]);
+    setRoleState(canManage ? "admin" : "user");
+  }, [canManage]);
 
   const refreshPaid = async () => {
     if (!email || !isSupabaseConfigured || !supabase) {
@@ -652,6 +659,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       role,
       setRole,
       canBeAdmin,
+      canManage,
       adminStatus,
       isOwner,
       listAdmins,
@@ -831,7 +839,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       canCompleteLesson: lessonWatchSatisfied,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, personas, quizResults, notes, completed, videoProgress]
+    [ready, email, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, personas, quizResults, notes, completed, videoProgress]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

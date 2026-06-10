@@ -14,7 +14,7 @@ import { LogOut, Menu, X, Settings } from "lucide-react";
  * dropdown.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { ready, loggedIn, logout, canBeAdmin, email, profile, hasPaid, paidReady } =
+  const { ready, loggedIn, logout, canManage, email, profile, hasPaid, paidReady } =
     useStore();
   const pathname = usePathname();
   const router = useRouter();
@@ -23,7 +23,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Paywall is off for now (Stripe is wired but not enforced). Flip to true to
   // confine unpaid, non-admin users to /upgrade. Admins always bypass.
   const PAYWALL_ENABLED = false;
-  const locked = PAYWALL_ENABLED && paidReady && !hasPaid && !canBeAdmin;
+  const locked = PAYWALL_ENABLED && paidReady && !hasPaid && !canManage;
 
   useEffect(() => {
     if (ready && !loggedIn) router.replace("/");
@@ -45,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/learn", label: "Training" },
     { href: "/practice", label: "Practice" },
-    ...(canBeAdmin ? [{ href: "/admin", label: "Analytics" }] : []),
+    ...(canManage ? [{ href: "/admin", label: "Analytics" }] : []),
   ];
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
