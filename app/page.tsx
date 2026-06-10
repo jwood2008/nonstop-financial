@@ -25,9 +25,13 @@ const PAPER = "#f5f4f1";
  *   const HERO_PHOTOS = ["/hero/jay-1.jpg", "/hero/jay-2.jpg"];
  */
 const HERO_PHOTOS: string[] = [
-  "/hero/jay-1.jpg",
-  "/hero/jay-2.jpg",
-  "/hero/jay-3.jpg",
+  "/hero/jay-1.png",
+  "/hero/jay-2.png",
+  "/hero/jay-3.png",
+  "/hero/jay-4.png",
+  "/hero/jay-5.png",
+  "/hero/jay-6.png",
+  "/hero/jay-7.png",
 ];
 
 const PILLARS = [
@@ -151,7 +155,7 @@ export default function Landing() {
             <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl shadow-[0_35px_70px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_45px_85px_-20px_rgba(0,0,0,0.5)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/hero/jay-1.jpg"
+                src="/hero/jay-1.png"
                 alt="Jay — NonStop Financial"
                 className="absolute inset-0 h-full w-full object-cover object-[center_25%]"
               />
@@ -289,7 +293,7 @@ export default function Landing() {
       <QuoteBand
         quote="I believe there's a NonStop-able version of each and every one of us. I'm here to unlock it."
         author="Jay Maska"
-        photo="/hero/jay-1.jpg"
+        photo="/hero/jay-2.png"
       />
 
       {/* closing CTA — PAPER band */}
