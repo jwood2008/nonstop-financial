@@ -277,7 +277,7 @@ function fmt(ms: number) {
 function McqPlayer({ block }: { block: ContentBlock }) {
   const quiz = block.quiz ?? EMPTY;
   const questions = quiz.questions.filter((q) => q.prompt.trim());
-  const { addQuizResult } = useStore();
+  const { addQuizResult, quizResults } = useStore();
   const myName = useMyName();
   const [round, setRound] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -287,6 +287,18 @@ function McqPlayer({ block }: { block: ContentBlock }) {
   useEffect(() => {
     start.current = Date.now();
   }, [round]);
+
+  // autosave: once taken, restore the completed result on revisit. One-shot so
+  // a manual retry within the session isn't immediately re-locked.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || done) return;
+    const prev = quizResults[block.id];
+    if (prev && prev.length) {
+      restored.current = true;
+      setDone(prev[prev.length - 1]);
+    }
+  }, [quizResults, block.id, done]);
 
   const submit = () => {
     const correct = questions.filter((q) => answers[q.id] === q.correct).length;
@@ -361,7 +373,7 @@ function MatchPlayer({ block }: { block: ContentBlock }) {
     () => quiz.pairs.filter((p) => p.term.trim() && p.definition.trim()),
     [quiz.pairs]
   );
-  const { addQuizResult } = useStore();
+  const { addQuizResult, quizResults } = useStore();
   const myName = useMyName();
 
   const [round, setRound] = useState(0);
@@ -383,6 +395,17 @@ function MatchPlayer({ block }: { block: ContentBlock }) {
     const id = window.setInterval(() => setElapsed(Date.now() - started), 100);
     return () => window.clearInterval(id);
   }, [started, done]);
+
+  // autosave: restore the completed result on revisit (one-shot)
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || done) return;
+    const prev = quizResults[block.id];
+    if (prev && prev.length) {
+      restored.current = true;
+      setDone(prev[prev.length - 1]);
+    }
+  }, [quizResults, block.id, done]);
 
   const begin = () => {
     if (started === null) setStarted(Date.now());
