@@ -55,16 +55,22 @@ function iso(d: Date) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+// Events are stored in UTC, so the range bounds must be UTC dates too —
+// otherwise late-day activity (which rolls into the next UTC day for users
+// behind UTC) falls just past "today" and shows as 0.
+function isoUTC(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
 function daysAgo(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d;
 }
 const PRESETS: { id: string; label: string; make: () => Range }[] = [
-  { id: "7d", label: "7d", make: () => ({ from: iso(daysAgo(6)), to: iso(new Date()), label: "Last 7 days" }) },
-  { id: "30d", label: "30d", make: () => ({ from: iso(daysAgo(29)), to: iso(new Date()), label: "Last 30 days" }) },
-  { id: "90d", label: "90d", make: () => ({ from: iso(daysAgo(89)), to: iso(new Date()), label: "Last 90 days" }) },
-  { id: "all", label: "All", make: () => ({ from: "1970-01-01", to: iso(new Date()), label: "All time" }) },
+  { id: "7d", label: "7d", make: () => ({ from: isoUTC(daysAgo(6)), to: isoUTC(new Date()), label: "Last 7 days" }) },
+  { id: "30d", label: "30d", make: () => ({ from: isoUTC(daysAgo(29)), to: isoUTC(new Date()), label: "Last 30 days" }) },
+  { id: "90d", label: "90d", make: () => ({ from: isoUTC(daysAgo(89)), to: isoUTC(new Date()), label: "Last 90 days" }) },
+  { id: "all", label: "All", make: () => ({ from: "1970-01-01", to: isoUTC(new Date()), label: "All time" }) },
 ];
 function previousOf(r: Range): { from: string; to: string } {
   const from = new Date(`${r.from}T00:00:00`);
