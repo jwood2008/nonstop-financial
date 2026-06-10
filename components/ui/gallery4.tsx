@@ -127,7 +127,8 @@ const Gallery4 = ({
                 rel={/^https?:\/\//i.test(item.href) ? "noopener noreferrer" : undefined}
                 className="group block"
               >
-                <div className="relative h-56 overflow-hidden border border-line">
+                {/* on-media: card text sits on a photo + dark gradient in both themes */}
+                <div className="on-media relative h-56 overflow-hidden border border-line">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={item.image}

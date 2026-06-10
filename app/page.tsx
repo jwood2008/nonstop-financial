@@ -68,7 +68,9 @@ export default function Landing() {
   }, [ready, loggedIn, router]);
 
   return (
-    <div className="min-h-screen" style={{ background: INK }}>
+    /* on-media: the landing page is ink-dark in BOTH themes, so its white
+       text must not be flipped dark by the light-mode overrides */
+    <div className="on-media min-h-screen" style={{ background: INK }}>
       <IntroOverlay />
 
       {/* top bar (over the dark hero) */}

@@ -383,12 +383,29 @@ html.light .bg-white\/25 {
   background-color: rgba(9, 9, 11, 0.18);
 }
 
-/* --- hero stays dark (white text over the photo scrim) --- */
+/* --- `.on-media` regions stay dark in light mode (white text over photos
+       or ink backgrounds — the landing page, hero bands, photo cards).
+       Covers every white/zinc text variant those surfaces use. --- */
 html.light .on-media .text-white {
   color: #ffffff;
 }
+html.light .on-media .text-white\/90 {
+  color: rgba(255, 255, 255, 0.9);
+}
+html.light .on-media .text-white\/80 {
+  color: rgba(255, 255, 255, 0.8);
+}
+html.light .on-media .text-white\/75 {
+  color: rgba(255, 255, 255, 0.75);
+}
 html.light .on-media .text-white\/70 {
   color: rgba(255, 255, 255, 0.7);
+}
+html.light .on-media .text-white\/65 {
+  color: rgba(255, 255, 255, 0.65);
+}
+html.light .on-media .text-white\/60 {
+  color: rgba(255, 255, 255, 0.6);
 }
 html.light .on-media .text-white\/55 {
   color: rgba(255, 255, 255, 0.55);
@@ -396,11 +413,32 @@ html.light .on-media .text-white\/55 {
 html.light .on-media .text-white\/50 {
   color: rgba(255, 255, 255, 0.5);
 }
+html.light .on-media .text-white\/45 {
+  color: rgba(255, 255, 255, 0.45);
+}
 html.light .on-media .text-white\/40 {
   color: rgba(255, 255, 255, 0.4);
 }
+html.light .on-media .text-white\/35 {
+  color: rgba(255, 255, 255, 0.35);
+}
+html.light .on-media .text-white\/30 {
+  color: rgba(255, 255, 255, 0.3);
+}
+html.light .on-media .text-zinc-200 {
+  color: #e4e4e7;
+}
+html.light .on-media .text-zinc-300 {
+  color: #d4d4d8;
+}
 html.light .on-media .border-white\/10 {
   border-color: rgba(255, 255, 255, 0.1);
+}
+html.light .on-media .border-white\/15 {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+html.light .on-media .bg-white\/\[0\.03\] {
+  background-color: rgba(255, 255, 255, 0.03);
 }
 html.light .on-media .bg-white\/\[0\.04\] {
   background-color: rgba(255, 255, 255, 0.04);
