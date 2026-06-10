@@ -12,6 +12,7 @@ type UserRow = {
   email: string;
   role?: string;
   requested_role?: string | null;
+  is_admin?: boolean;
 };
 
 export default function RequestsPage() {
@@ -60,15 +61,39 @@ function Requests() {
     if (canBeAdmin) load();
   }, [canBeAdmin, load]);
 
-  // approve = set their role to what they asked for; deny = keep current (both
-  // clear the pending request via the set-role route)
-  const decide = async (u: UserRow, role: string) => {
-    setBusy(u.id);
-    await authedFetch("/api/admin/set-role", {
+  const clearRequest = (u: UserRow) =>
+    authedFetch("/api/admin/set-role", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: u.id, role }),
+      // setting their current position is a no-op that also clears the request
+      body: JSON.stringify({ userId: u.id, role: u.role || "Lead" }),
     });
+
+  const approve = async (u: UserRow) => {
+    setBusy(u.id);
+    if (u.requested_role === "Admin") {
+      // grant team-admin access (keeps their position — e.g. Agent + Admin)
+      await authedFetch("/api/admin/add-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: u.email }),
+      });
+      await clearRequest(u);
+    } else {
+      // promote their position (Manager) — set-role also clears the request
+      await authedFetch("/api/admin/set-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: u.id, role: u.requested_role }),
+      });
+    }
+    await load();
+    setBusy(null);
+  };
+
+  const deny = async (u: UserRow) => {
+    setBusy(u.id);
+    await clearRequest(u);
     await load();
     setBusy(null);
   };
@@ -85,9 +110,11 @@ function Requests() {
     );
   }
 
-  const pending = users.filter(
-    (u) => u.requested_role && u.requested_role !== (u.role || "Lead")
-  );
+  const pending = users.filter((u) => {
+    if (!u.requested_role) return false;
+    if (u.requested_role === "Admin") return !u.is_admin; // already admin? no req
+    return u.requested_role !== (u.role || "Lead");
+  });
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8 lg:px-8">
@@ -131,22 +158,30 @@ function Requests() {
                   <p className="truncate text-xs text-muted-2">{u.email}</p>
                 </div>
                 <span className="text-xs text-muted">
-                  <span className="text-muted-2">{u.role || "Lead"}</span>
-                  {" → "}
-                  <span className="font-semibold text-nonstop">
-                    {u.requested_role}
-                  </span>
+                  {u.requested_role === "Admin" ? (
+                    <span className="font-semibold text-nonstop">
+                      wants Admin access
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-muted-2">{u.role || "Lead"}</span>
+                      {" → "}
+                      <span className="font-semibold text-nonstop">
+                        {u.requested_role}
+                      </span>
+                    </>
+                  )}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => decide(u, u.requested_role!)}
+                    onClick={() => approve(u)}
                     disabled={busy === u.id}
                     className="inline-flex items-center gap-1.5 bg-nonstop px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-nonstop-dark disabled:opacity-50"
                   >
                     <Check className="h-3.5 w-3.5" /> Approve
                   </button>
                   <button
-                    onClick={() => decide(u, u.role || "Lead")}
+                    onClick={() => deny(u)}
                     disabled={busy === u.id}
                     className="inline-flex items-center gap-1.5 border border-line-2 px-3 py-1.5 text-xs font-medium text-muted transition hover:text-white disabled:opacity-50"
                   >

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { isPositionRole } from "@/lib/roles";
+import { isPositionRole, isRequestable } from "@/lib/roles";
 
 export const runtime = "nodejs";
 
@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const raw = String(body?.role ?? "").trim();
   const requested = raw === "" ? null : raw;
-  if (requested !== null && !isPositionRole(requested)) {
+  // can request a position (e.g. Manager) or "Admin" (team-admin access)
+  if (requested !== null && !isPositionRole(requested) && !isRequestable(requested)) {
     return NextResponse.json({ error: "Unknown role." }, { status: 400 });
   }
 

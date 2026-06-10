@@ -240,6 +240,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         role: data.role ?? p.role,
         requestedRole: data.requested_role ?? null,
       }));
+
+    // Guarantee the position rule even if the DB trigger isn't applied: a
+    // NonStop email still on "Lead" gets auto-bumped to "Agent".
+    const em = (data?.email ?? "").toLowerCase();
+    if (em.split("@")[1] === "nonstopglobal.co" && (!data?.role || data.role === "Lead")) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (token) {
+        try {
+          const res = await fetch("/api/profile/sync-position", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const j = await res.json().catch(() => ({}));
+          if (res.ok && j?.role) setProfile((p) => ({ ...p, role: j.role }));
+        } catch {
+          /* ignore */
+        }
+      }
+    }
   };
 
   // hydrate local-only state from localStorage; auth comes from Supabase when

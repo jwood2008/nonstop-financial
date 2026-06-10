@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { useStore, type AdminRow } from "@/lib/store";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
-import { POSITION_ROLES, DEFAULT_ROLE } from "@/lib/roles";
+import { REQUESTABLE_ROLES, DEFAULT_ROLE } from "@/lib/roles";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Camera,
@@ -286,7 +286,7 @@ function Settings() {
 
 /** Your position on the team — view it, and request a change (admins approve). */
 function RolePanel() {
-  const { profile, requestRoleChange } = useStore();
+  const { profile, requestRoleChange, canBeAdmin } = useStore();
   const [choice, setChoice] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -294,7 +294,12 @@ function RolePanel() {
 
   const current = profile.role || DEFAULT_ROLE;
   const pending = profile.requestedRole;
-  const options = POSITION_ROLES.filter((r) => r !== current);
+  // can request Manager (unless already one) or Admin (unless already an admin)
+  const options = REQUESTABLE_ROLES.filter(
+    (r) =>
+      !(r === "Manager" && current === "Manager") &&
+      !(r === "Admin" && canBeAdmin)
+  );
 
   const submit = async () => {
     if (!choice) return;
@@ -320,13 +325,19 @@ function RolePanel() {
   return (
     <Section
       title="Your Position"
-      subtitle="Your role on the team. You can request a change — an admin approves it."
+      subtitle="Your role on the team. Request Manager or Admin — an admin approves it."
     >
       <div className="flex flex-wrap items-center gap-3">
         <span className="inline-flex items-center gap-2 rounded-md border border-line-2 bg-surface-2 px-3 py-2 text-sm font-semibold text-white">
           <BadgeCheck className="h-4 w-4 text-nonstop" />
           {current}
         </span>
+        {canBeAdmin && (
+          <span className="inline-flex items-center gap-2 rounded-md border border-nonstop/40 bg-nonstop/10 px-3 py-2 text-sm font-semibold text-nonstop">
+            <Shield className="h-4 w-4" />
+            Admin
+          </span>
+        )}
         {pending && (
           <span className="text-xs text-amber-300">
             Requested: {pending} — pending admin approval
@@ -340,7 +351,7 @@ function RolePanel() {
           onChange={(e) => setChoice(e.target.value)}
           className={`${inputCls} max-w-xs`}
         >
-          <option value="">Request a different position…</option>
+          <option value="">Request a promotion…</option>
           {options.map((r) => (
             <option key={r} value={r}>
               {r}
