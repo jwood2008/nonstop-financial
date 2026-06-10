@@ -32,14 +32,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  // 2. caller must be a team admin (owner or admin)
+  // 2. caller must be an OWNER — sub-admins cannot manage the admin list
+  //    (mirrors the add_admin RPC and the app_admins tier rules)
   const { data: caller } = await supabaseAdmin
     .from("app_admins")
     .select("role")
     .eq("email", callerEmail)
     .maybeSingle();
-  if (!caller) {
-    return NextResponse.json({ error: "Only admins can add admins." }, { status: 403 });
+  if (!caller || caller.role !== "owner") {
+    return NextResponse.json({ error: "Only owners can add admins." }, { status: 403 });
   }
 
   // 3. validate the target email

@@ -12,8 +12,9 @@ export function Sparkline({ data, color = PRIMARY }: { data: number[]; color?: s
   const min = Math.min(...data);
   const max = Math.max(...data);
   const span = max - min || 1;
+  const xStep = data.length > 1 ? w / (data.length - 1) : 0; // single point → flat
   const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
+    const x = data.length > 1 ? i * xStep : w / 2;
     const y = h - ((v - min) / span) * (h - 4) - 2;
     return [x, y] as const;
   });
@@ -41,7 +42,9 @@ export function BarChart({
 }: {
   data: { day: string; active: number; lessons: number }[];
 }) {
-  const max = Math.max(...data.map((d) => d.lessons));
+  // scale to the tallest bar of EITHER series (actives can exceed lessons,
+  // e.g. lots of activity but no completions) — and never divide by zero
+  const max = Math.max(1, ...data.map((d) => Math.max(d.lessons, d.active)));
   return (
     <div className="flex h-56 items-end gap-2">
       {data.map((d, i) => (
@@ -104,7 +107,7 @@ export function AreaLine({ data }: { data: number[] }) {
 
 /* ---------- Donut (audience by module) ---------- */
 export function Donut({ data }: { data: { label: string; value: number }[] }) {
-  const total = data.reduce((s, d) => s + d.value, 0);
+  const total = data.reduce((s, d) => s + d.value, 0) || 1; // guard zero totals
   // monochrome ramp over the theme ink — distinct steps for any segment count,
   // and reads on both dark and light paper.
   const opacityFor = (i: number) =>

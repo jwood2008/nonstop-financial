@@ -20,7 +20,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
   }
 
-  if (event.type === "checkout.session.completed") {
+  // completed = instant methods (cards); async_payment_succeeded = delayed
+  // methods (e.g. bank debits) that confirm after checkout closes.
+  if (
+    event.type === "checkout.session.completed" ||
+    event.type === "checkout.session.async_payment_succeeded"
+  ) {
     const s = event.data.object as Stripe.Checkout.Session;
     const userId = s.metadata?.user_id ?? s.client_reference_id ?? null;
     if (userId && s.payment_status === "paid" && supabaseAdmin) {
