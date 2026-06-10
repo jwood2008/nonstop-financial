@@ -47,6 +47,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unknown role." }, { status: 400 });
   }
 
+  // one role per person: admins are 'Admin', full stop — they can't also
+  // hold a pipeline position. Remove their admin access first.
+  const { data: target } = await supabaseAdmin
+    .from("profiles")
+    .select("email")
+    .eq("id", userId)
+    .maybeSingle();
+  if (target?.email) {
+    const { data: targetAdmin } = await supabaseAdmin
+      .from("app_admins")
+      .select("email")
+      .eq("email", target.email.toLowerCase())
+      .maybeSingle();
+    if (targetAdmin) {
+      return NextResponse.json(
+        { error: "This user is an Admin. Remove their admin access first." },
+        { status: 409 }
+      );
+    }
+  }
+
   const { error } = await supabaseAdmin
     .from("profiles")
     .update({ role, requested_role: null })

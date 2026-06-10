@@ -301,14 +301,12 @@ function RolePanel() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const current = profile.role || DEFAULT_ROLE;
-  const pending = profile.requestedRole;
-  // can request Manager (unless already one) or Admin (unless already an admin)
-  const options = REQUESTABLE_ROLES.filter(
-    (r) =>
-      !(r === "Manager" && current === "Manager") &&
-      !(r === "Admin" && canBeAdmin)
-  );
+  // one role per person — admins are simply "Admin" and request nothing
+  const current = canBeAdmin ? "Admin" : profile.role || DEFAULT_ROLE;
+  const pending = canBeAdmin ? null : profile.requestedRole;
+  const options = canBeAdmin
+    ? []
+    : REQUESTABLE_ROLES.filter((r) => !(r === "Manager" && current === "Manager"));
 
   const submit = async () => {
     if (!choice) return;

@@ -622,8 +622,9 @@ function UsersList({
       {data.map((u) => {
         const name = u.name?.trim() || "—";
         const initial = (u.name?.trim() || u.email || "?").charAt(0).toUpperCase();
-        const role = u.role || "Lead";
-        const pending = u.requested_role && u.requested_role !== role
+        // one role per person: admins are just "Admin" (no pipeline position)
+        const role = u.is_admin ? "Admin" : u.role || "Lead";
+        const pending = !u.is_admin && u.requested_role && u.requested_role !== role
           ? u.requested_role
           : null;
         return (
@@ -650,7 +651,7 @@ function UsersList({
               <span className="text-xs text-amber-300">wants {pending}</span>
             )}
 
-            {onSetRole ? (
+            {onSetRole && !u.is_admin ? (
               <div className="flex items-center gap-2">
                 {pending && (
                   <button

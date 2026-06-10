@@ -11,7 +11,7 @@ the signup manager dropdown + per-team analytics scoping go live.
 
 ---
 
-## 1. Shared curriculum + cross-device progress (`content-progress.sql`)
+## 1. Shared curriculum + cross-device progress ([supabase/content-progress.sql](supabase/content-progress.sql))
 
 ```sql
 -- =====================================================================
@@ -100,7 +100,7 @@ create trigger user_progress_touch before update on public.user_progress
 
 ---
 
-## 2. Birthday at signup (`birthdate.sql`)
+## 2. Birthday at signup ([supabase/birthdate.sql](supabase/birthdate.sql))
 
 ```sql
 -- =====================================================================
@@ -144,7 +144,7 @@ $$;
 
 ---
 
-## 3. Teams + scoped analytics (`teams.sql`) — run last
+## 3. Teams + scoped analytics ([supabase/teams.sql](supabase/teams.sql)) — run last
 
 ```sql
 -- =====================================================================

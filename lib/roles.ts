@@ -1,7 +1,8 @@
 /**
- * Position ladder (separate from admin status). Every new signup starts as a
- * "Lead". A user can *request* a different position in Settings, but only an
- * admin can actually set it (in the analytics Users panel).
+ * The role pipeline: Lead → Agent → Manager → Admin. One role per person.
+ * POSITION_ROLES are the assignable team positions (analytics Users panel);
+ * 'Admin' is granted via the admin list instead (Settings → Team admins),
+ * which forces the profile role to Admin and clears any team ties.
  */
 export const POSITION_ROLES = ["Lead", "Agent", "Manager"] as const;
 
