@@ -98,7 +98,7 @@ export default function Landing() {
             </Link>
             <Link
               href="/signup"
-              className="bg-nonstop px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
+              className="rounded-full bg-nonstop px-5 py-1.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
             >
               Apply for Academy
             </Link>
@@ -133,7 +133,7 @@ export default function Landing() {
             <div className="mt-8 flex flex-wrap items-center gap-5">
               <Link
                 href="/signup"
-                className="group inline-flex items-center gap-2 bg-nonstop px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
+                className="group inline-flex items-center gap-2 rounded-full bg-nonstop px-7 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_10px_30px_-10px_rgba(255,95,31,0.55)] transition hover:bg-nonstop-dark"
               >
                 <Text_03 text="Sign up for mentorship" className="w-auto text-sm" />
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
@@ -201,9 +201,12 @@ export default function Landing() {
       <section style={{ background: INK }}>
         <div className="mx-auto max-w-6xl px-6 py-24">
           <Eyebrow>How it works</Eyebrow>
-          <div className="mt-10 grid gap-10 sm:grid-cols-3">
+          <div className="mt-10 grid gap-5 sm:grid-cols-3">
             {PILLARS.map(([title, desc]) => (
-              <div key={title}>
+              <div
+                key={title}
+                className="rounded-3xl border border-white/10 bg-white/[0.04] p-7 transition duration-300 hover:-translate-y-1 hover:border-nonstop/40 hover:shadow-[0_18px_44px_-18px_rgba(255,95,31,0.35)]"
+              >
                 <h3 className="font-display text-xl font-bold text-white">
                   {title}
                 </h3>
@@ -258,7 +261,7 @@ export default function Landing() {
                 </span>
               </div>
 
-              <div className="mt-7 border-l-2 border-nonstop pl-5">
+              <div className="mt-7 rounded-2xl border border-nonstop/30 bg-nonstop/[0.06] p-5">
                 <p className="font-display text-xl font-bold text-nonstop">
                   Free for the team.
                 </p>
@@ -273,7 +276,7 @@ export default function Landing() {
               <div className="mt-9 flex flex-wrap items-center gap-6">
                 <Link
                   href="/signup"
-                  className="group inline-flex items-center gap-2 bg-nonstop px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
+                  className="group inline-flex items-center gap-2 rounded-full bg-nonstop px-7 py-3 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_10px_30px_-10px_rgba(255,95,31,0.55)] transition hover:bg-nonstop-dark"
                 >
                   <Text_03
                     text="A part of NonStop? It's free"
@@ -315,7 +318,7 @@ export default function Landing() {
           <div className="mt-9 flex flex-col items-center gap-4">
             <Link
               href="/signup"
-              className="group inline-flex items-center gap-2 bg-nonstop px-7 py-3.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-nonstop-dark"
+              className="group inline-flex items-center gap-2 rounded-full bg-nonstop px-8 py-3.5 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_10px_30px_-10px_rgba(255,95,31,0.55)] transition hover:bg-nonstop-dark"
             >
               <Text_03 text="Sign up for free" className="w-auto text-sm" />
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
