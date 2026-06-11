@@ -71,6 +71,8 @@ export interface Lesson {
 export interface Module {
   id: string;
   title: string;
+  /** short blurb shown on lead-type track cards (optional elsewhere) */
+  description?: string;
   lessons: Lesson[];
 }
 

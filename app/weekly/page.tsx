@@ -393,6 +393,7 @@ function TeamChat({
   const [draft, setDraft] = useState("");
   const [asUpdate, setAsUpdate] = useState(false);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const countRef = useRef(0);
 
@@ -430,11 +431,21 @@ function TeamChat({
     const body = draft.trim();
     if (!body || !supabase || sending) return;
     setSending(true);
-    const { error } = await supabase
+    setError(null);
+    const { error: err } = await supabase
       .from("team_messages")
       .insert({ team_id: teamId, body, is_update: canPostUpdates && asUpdate });
     setSending(false);
-    if (!error) {
+    if (err) {
+      // surface WHY instead of failing silently (e.g. migration not run yet)
+      setError(
+        /PGRST205|schema cache/i.test(err.message)
+          ? "Chat isn't set up yet — run supabase/weekly-training.sql in the SQL Editor."
+          : err.message
+      );
+      return;
+    }
+    {
       setDraft("");
       setAsUpdate(false);
       const { data } = await supabase
@@ -495,6 +506,11 @@ function TeamChat({
       </div>
 
       <div className="border-t border-white/10 p-3">
+        {error && (
+          <p className="mb-2 rounded-lg border border-red-400/30 bg-red-400/10 px-3 py-2 text-[11px] leading-snug text-red-300">
+            {error}
+          </p>
+        )}
         {canPostUpdates && (
           <label className="mb-2 flex cursor-pointer items-center gap-2 text-[11px] text-white/55">
             <input

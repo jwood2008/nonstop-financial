@@ -19,7 +19,7 @@ import type {
   Spotlight,
 } from "./types";
 import type { Persona } from "./personas";
-import { SEED_COURSE, DEFAULT_SPOTLIGHTS } from "./data";
+import { SEED_COURSE, DEFAULT_SPOTLIGHTS, DEFAULT_LEAD_TRACKS } from "./data";
 import { SEED_PERSONAS } from "./personas";
 import { DEMO_EMAIL, isAdminEmail } from "./admins";
 import { supabase, isSupabaseConfigured, track } from "./supabase";
@@ -38,6 +38,10 @@ const LS_THEME = "nf.theme"; // "dark" | "light"
 const LS_ACCOUNTS = "nf.accounts"; // { [emailLower]: Account }
 const LS_VIDEO = "nf.videoProgress"; // { [blockId]: fraction watched 0..1 }
 const LS_SPOTLIGHTS = "nf.spotlights"; // Spotlight[]
+const LS_LEADS = "nf.leadTracks"; // Course (lead-type tracks)
+
+/** course_content row id that holds the lead-type ("In Depth") tracks. */
+const LEADS_DOC_ID = "lead-tracks";
 
 /** course_content row id that holds the dashboard Spotlight cards. */
 const SPOTLIGHTS_DOC_ID = "spotlights";
@@ -175,6 +179,16 @@ interface Store {
   teamId: string | null; // whose team's training is loaded (manager's id)
   setTeamId: (id: string | null) => void;
   teamCourse: Course | null;
+
+  // lead-type tracks ("In Depth") — directly accessible training per lead
+  // type (IUL, MP, VETS, FEX, …). Admin-edited, shared with everyone.
+  leadCourse: Course;
+  addTrack: () => string;
+  removeTrack: (trackId: string) => void;
+  updateTrack: (trackId: string, patch: { title?: string; description?: string }) => void;
+  addTrackLesson: (trackId: string) => string;
+  removeTrackLesson: (lessonId: string) => void;
+
   addWeek: () => string;
   removeWeek: (weekId: string) => void;
   updateWeekTitle: (weekId: string, title: string) => void;
@@ -261,6 +275,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [teamId, setTeamIdState] = useState<string | null>(null);
   const [teamCourse, setTeamCourse] = useState<Course | null>(null);
+  const [leadCourse, setLeadCourse] = useState<Course>(DEFAULT_LEAD_TRACKS);
   const [role, setRoleState] = useState<Role>("user");
   const [course, setCourse] = useState<Course>(SEED_COURSE);
   const [spotlights, setSpotlights] = useState<Spotlight[]>(DEFAULT_SPOTLIGHTS);
@@ -288,6 +303,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const courseSyncedRef = useRef<string | null>(null); // JSON of last loaded/saved course
   const spotlightsSyncedRef = useRef<string | null>(null);
   const teamSyncedRef = useRef<string | null>(null);
+  const leadsSyncedRef = useRef<string | null>(null);
   const progressLoadedRef = useRef(false);
   const progressSyncedRef = useRef<string | null>(null);
 
@@ -299,7 +315,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!supabase || remoteLoadedForRef.current === uid) return;
     remoteLoadedForRef.current = uid;
 
-    const [{ data: cc }, { data: sp }, { data: pr }] = await Promise.all([
+    const [{ data: cc }, { data: sp }, { data: lt }, { data: pr }] = await Promise.all([
       supabase
         .from("course_content")
         .select("content")
@@ -309,6 +325,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .from("course_content")
         .select("content")
         .eq("id", SPOTLIGHTS_DOC_ID)
+        .maybeSingle(),
+      supabase
+        .from("course_content")
+        .select("content")
+        .eq("id", LEADS_DOC_ID)
         .maybeSingle(),
       supabase.from("user_progress").select("*").eq("user_id", uid).maybeSingle(),
     ]);
@@ -325,6 +346,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const remote = sp.content as Spotlight[];
       setSpotlights(remote);
       spotlightsSyncedRef.current = JSON.stringify(remote);
+    }
+
+    if (lt?.content) {
+      const remote = lt.content as Course;
+      if (remote.id === LEADS_DOC_ID) {
+        setLeadCourse(remote);
+        leadsSyncedRef.current = JSON.stringify(remote);
+      }
     }
 
     if (pr) {
@@ -424,6 +453,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const savedCourse = read<Course | null>(LS_COURSE, null);
     setCourse(savedCourse?.id === SEED_COURSE.id ? savedCourse : SEED_COURSE);
     setSpotlights(read<Spotlight[]>(LS_SPOTLIGHTS, DEFAULT_SPOTLIGHTS));
+    setLeadCourse(read<Course>(LS_LEADS, DEFAULT_LEAD_TRACKS));
     setPersonas(read<Persona[]>(LS_PERSONAS, SEED_PERSONAS));
     setQuizResults(read<Record<string, QuizAttempt[]>>(LS_QUIZ, {}));
     setProfile({ ...DEFAULT_PROFILE, ...read(LS_PROFILE, DEFAULT_PROFILE) });
@@ -488,6 +518,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_SPOTLIGHTS, JSON.stringify(spotlights));
   }, [spotlights, ready]);
+  useEffect(() => {
+    if (ready) window.localStorage.setItem(LS_LEADS, JSON.stringify(leadCourse));
+  }, [leadCourse, ready]);
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_QUIZ, JSON.stringify(quizResults));
   }, [quizResults, ready]);
@@ -679,6 +712,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }, 1200);
     return () => clearTimeout(t);
   }, [spotlights, ready, canBeAdmin, email]);
+
+  // Publish lead-track ("In Depth") edits to Supabase (ADMINS only —
+  // same course_content table/policies, row id "lead-tracks").
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !canBeAdmin) return;
+    const json = JSON.stringify(leadCourse);
+    if (json === leadsSyncedRef.current) return;
+    if (json.length > 5_000_000) {
+      console.warn("[lead tracks] too large to publish — use video URLs, not huge uploads.");
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { error } = await supabase!.from("course_content").upsert({
+        id: LEADS_DOC_ID,
+        content: leadCourse,
+        updated_by: email,
+      });
+      if (!error) leadsSyncedRef.current = json;
+      else console.warn("[lead tracks] save failed:", error.message);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [leadCourse, ready, canBeAdmin, email]);
 
   // Sync this user's progress to Supabase so it follows them across devices.
   // Waits for the initial remote load (so we merge before we overwrite).
@@ -989,12 +1044,24 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
+    setLeadCourse((prev) => {
+      if (!courseHasLesson(prev, lessonId)) return prev;
+      const next: Course = structuredClone(prev);
+      for (const m of next.modules) {
+        const l = m.lessons.find((x) => x.id === lessonId);
+        if (l) {
+          fn(l);
+          break;
+        }
+      }
+      return next;
+    });
   };
 
   // A lesson that contains trackable video can only be completed once that
   // video has been watched past the threshold — no skipping to the end.
   const lessonWatchSatisfied = (lessonId: string): boolean => {
-    const lesson = [...course.modules, ...(teamCourse?.modules ?? [])]
+    const lesson = [...course.modules, ...(teamCourse?.modules ?? []), ...leadCourse.modules]
       .flatMap((m) => m.lessons)
       .find((l) => l.id === lessonId);
     if (!lesson) return true;
@@ -1065,6 +1132,54 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       teamId,
       setTeamId: (id) => setTeamIdState(id),
       teamCourse,
+
+      leadCourse,
+      addTrack: () => {
+        const id = "lt-" + uid();
+        setLeadCourse((prev) => {
+          const next: Course = structuredClone(prev);
+          next.modules.push({
+            id,
+            title: "New Lead Type",
+            description: "",
+            lessons: [newLesson("lt-")],
+          });
+          return next;
+        });
+        return id;
+      },
+      removeTrack: (trackId) =>
+        setLeadCourse((prev) => {
+          const next: Course = structuredClone(prev);
+          next.modules = next.modules.filter((m) => m.id !== trackId);
+          return next;
+        }),
+      updateTrack: (trackId, patch) =>
+        setLeadCourse((prev) => {
+          const next: Course = structuredClone(prev);
+          const m = next.modules.find((x) => x.id === trackId);
+          if (m) Object.assign(m, patch);
+          return next;
+        }),
+      addTrackLesson: (trackId) => {
+        const lesson = newLesson("lt-");
+        setLeadCourse((prev) => {
+          const next: Course = structuredClone(prev);
+          const m = next.modules.find((x) => x.id === trackId);
+          if (m) m.lessons.push(lesson);
+          return next;
+        });
+        return lesson.id;
+      },
+      removeTrackLesson: (lessonId) =>
+        setLeadCourse((prev) => {
+          const next: Course = structuredClone(prev);
+          for (const m of next.modules) {
+            m.lessons = m.lessons.filter((l) => l.id !== lessonId);
+          }
+          return next;
+        }),
+
       addWeek: () => {
         const id = "wt-" + uid();
         setTeamCourse((prev) => {
@@ -1123,8 +1238,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addBlock: (lessonId, type) =>
         mutateLesson(lessonId, (l) => {
           const inWeekly = teamCourse ? courseHasLesson(teamCourse, lessonId) : false;
+          const inLeads = courseHasLesson(leadCourse, lessonId);
           const block: ContentBlock = {
-            id: (inWeekly ? "wt-" : "") + uid(),
+            id: (inWeekly ? "wt-" : inLeads ? "lt-" : "") + uid(),
             type,
             src: "",
             caption: "",
@@ -1275,7 +1391,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       canCompleteLesson: lessonWatchSatisfied,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, userId, teamId, teamCourse, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, spotlights, personas, quizResults, notes, completed, videoProgress]
+    [ready, email, userId, teamId, teamCourse, leadCourse, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, spotlights, personas, quizResults, notes, completed, videoProgress]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

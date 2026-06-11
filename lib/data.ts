@@ -46,6 +46,52 @@ export const DEFAULT_SPOTLIGHTS: Spotlight[] = [
  */
 export const SEED_COURSE: Course = buildCourse();
 
+/** Lead-type training tracks ("In Depth" tab) — directly accessible, unlike
+ *  the sequential main course. Admins edit/add tracks in place; lesson ids
+ *  are 'lt-' prefixed. Seeded from the team's lead list (IUL, MP, VETS,
+ *  FEX, Gen Life) — add more as new lead types come online. */
+export const DEFAULT_LEAD_TRACKS: Course = {
+  id: "lead-tracks",
+  title: "In Depth — Lead Types",
+  modules: [
+    {
+      id: "lt-iul",
+      title: "IUL",
+      description:
+        "Indexed Universal Life leads — position the tax-advantaged retirement story and close with confidence.",
+      lessons: [],
+    },
+    {
+      id: "lt-mp",
+      title: "Mortgage Protection",
+      description:
+        "MP leads — homeowners who just took on a mortgage. Speed, urgency, and protecting the family home.",
+      lessons: [],
+    },
+    {
+      id: "lt-vets",
+      title: "Veterans",
+      description:
+        "VET leads — serving those who served. Programs, eligibility, and the trust-first conversation.",
+      lessons: [],
+    },
+    {
+      id: "lt-fex",
+      title: "Final Expense",
+      description:
+        "FEX leads — simplified-issue coverage for seniors. Compassionate urgency and same-call closes.",
+      lessons: [],
+    },
+    {
+      id: "lt-genlife",
+      title: "Gen Life",
+      description:
+        "General life leads — broad-need prospects. Diagnose the need, then match the product.",
+      lessons: [],
+    },
+  ],
+};
+
 /* ===================== ANALYTICS (mock, Instagram-style) ===================== */
 
 export interface Sparkline {

@@ -53,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const nav = [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/learn", label: "Training" },
+    { href: "/leads", label: "In Depth" },
     { href: "/weekly", label: "Weekly" },
     ...(canManage ? [{ href: "/admin", label: "Analytics" }] : []),
     ...(canBeAdmin ? [{ href: "/requests", label: "Requests" }] : []),
