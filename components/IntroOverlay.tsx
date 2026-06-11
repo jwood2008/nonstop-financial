@@ -13,8 +13,11 @@ import { GooeyText } from "@/components/ui/gooey-text-morphing";
  */
 const WORDS = ["Obsession", "Mastery", "Mentorship", "Legacy", "Family"];
 const SECONDS_PER_WORD = 1.2;
+// The morph loop gives the FIRST word only its short cooldown before morphing
+// away, so "Obsession" flashed by — hold it statically for a beat first.
+const FIRST_HOLD_MS = 1000;
 // cut to the logo morph while the last word is still up, before the loop wraps
-const WORDS_MS = (WORDS.length - 0.5) * SECONDS_PER_WORD * 1000;
+const WORDS_MS = FIRST_HOLD_MS + (WORDS.length - 0.5) * SECONDS_PER_WORD * 1000;
 const MORPH_MS = 1100; // last word → logo gooey morph
 const LOGO_MS = 1700; // logo hold
 const DOOR_MS = 1100; // garage-door slide
@@ -24,6 +27,13 @@ export function IntroOverlay() {
   const [stage, setStage] = useState<"words" | "logo">("words");
   const [leaving, setLeaving] = useState(false);
   const [done, setDone] = useState(false);
+  // false during the initial static hold of "Obsession"; then the morph starts
+  const [cycling, setCycling] = useState(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setCycling(true), FIRST_HOLD_MS);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const lift = () => {
     setLeaving(true);
@@ -76,13 +86,22 @@ export function IntroOverlay() {
 
       {/* words → (gooey morph) → logo */}
       {stage === "words" ? (
-        <GooeyText
-          texts={WORDS}
-          morphTime={0.8}
-          cooldownTime={SECONDS_PER_WORD - 0.8}
-          className="h-[140px] w-full"
-          textClassName="text-black font-display tracking-tight text-6xl sm:text-8xl"
-        />
+        cycling ? (
+          <GooeyText
+            texts={WORDS}
+            morphTime={0.8}
+            cooldownTime={SECONDS_PER_WORD - 0.8}
+            className="h-[140px] w-full"
+            textClassName="text-black font-display tracking-tight text-6xl sm:text-8xl"
+          />
+        ) : (
+          // static first word, pixel-identical to GooeyText's opening frame
+          <div className="relative h-[140px] w-full">
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none whitespace-nowrap text-center font-display text-6xl tracking-tight text-black sm:text-8xl">
+              {WORDS[0]}
+            </span>
+          </div>
+        )
       ) : (
         <GooeyMorphToLogo
           word={WORDS[WORDS.length - 1]}
