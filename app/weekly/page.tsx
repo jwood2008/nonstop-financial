@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader } from "@/components/PageHeader";
 import { ContentBlockView } from "@/components/ContentBlockView";
+import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import { useStore } from "@/lib/store";
 import { supabase, isSupabaseConfigured, track } from "@/lib/supabase";
 import type { BlockType } from "@/lib/types";
@@ -264,25 +265,27 @@ function Weekly() {
                   </h2>
                 )}
                 {!editing && (
-                  <button
+                  /* liquid-glass complete button — warm glow, matches /learn */
+                  <LiquidButton
                     onClick={() => toggleComplete(active.id)}
                     disabled={completeLocked}
+                    size="sm"
                     title={
                       completeLocked
                         ? "Watch the video first to complete this lesson"
                         : undefined
                     }
-                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition ${
+                    className={`rounded-full font-semibold ${
                       isDone
-                        ? "bg-green-500/15 text-green-300"
+                        ? "text-nonstop shadow-[0_0_26px_-6px_rgba(255,150,70,0.5)]"
                         : completeLocked
-                          ? "cursor-not-allowed bg-white/5 text-white/30"
-                          : "bg-nonstop text-white hover:bg-nonstop-dark"
+                          ? "cursor-not-allowed text-white/30"
+                          : "text-white shadow-[0_0_22px_-8px_rgba(255,150,70,0.35)] hover:text-nonstop"
                     }`}
                   >
                     <Check className="h-3.5 w-3.5" />
                     {isDone ? "Completed" : "Mark complete"}
-                  </button>
+                  </LiquidButton>
                 )}
               </div>
 

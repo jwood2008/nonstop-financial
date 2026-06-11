@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { AppShell } from "@/components/AppShell";
+import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import { useStore, allLessons } from "@/lib/store";
 import { track } from "@/lib/supabase";
 import { ContentBlockView } from "@/components/ContentBlockView";
@@ -527,24 +528,24 @@ function Learn() {
                 {editing ? "Done editing" : "Edit"}
               </button>
             )}
-            <motion.button
+            {/* liquid-glass complete button — warm (not orange-orange) glow */}
+            <LiquidButton
               onClick={() => {
                 if (!completeLocked) toggleComplete(active.id);
               }}
               disabled={completeLocked}
-              whileTap={completeLocked ? undefined : { scale: 0.94 }}
-              transition={{ type: "spring", stiffness: 500, damping: 22 }}
+              size="default"
               title={
                 completeLocked
                   ? `Finish watching the video to complete this lesson (${watchPct}% watched)`
                   : undefined
               }
-              className={`inline-flex items-center gap-2 px-3.5 py-2 text-sm font-semibold transition-colors ${
+              className={`rounded-full text-sm font-semibold ${
                 isDone
-                  ? "border border-nonstop/40 bg-nonstop/10 text-nonstop"
+                  ? "text-nonstop shadow-[0_0_26px_-6px_rgba(255,150,70,0.5)]"
                   : completeLocked
-                  ? "cursor-not-allowed border border-line-2 text-muted-2"
-                  : "border border-line-2 text-white hover:border-nonstop hover:text-nonstop"
+                  ? "cursor-not-allowed text-muted-2"
+                  : "text-white shadow-[0_0_22px_-8px_rgba(255,150,70,0.35)] hover:text-nonstop"
               }`}
             >
               {isDone ? (
@@ -567,7 +568,7 @@ function Learn() {
                 : completeLocked
                 ? `Watch to complete · ${watchPct}%`
                 : "Mark complete"}
-            </motion.button>
+            </LiquidButton>
           </div>
         </div>
 
