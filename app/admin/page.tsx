@@ -112,12 +112,18 @@ type KpiRow = {
 const DOW_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 
 function Analytics() {
-  const { canBeAdmin, canManage, course } = useStore();
-  const lessons = useMemo(() => allLessons(course), [course]);
+  const { canBeAdmin, canManage, course, teamCourse } = useStore();
+  const lessons = useMemo(
+    () => [...allLessons(course), ...(teamCourse ? allLessons(teamCourse) : [])],
+    [course, teamCourse]
+  );
   const totalLessons = lessons.length;
 
   const [presetId, setPresetId] = useState("30d");
   const [range, setRange] = useState<Range>(PRESETS[1].make());
+
+  // Which program the numbers cover: the main course, weekly training, or both.
+  const [source, setSource] = useState<"all" | "course" | "weekly">("all");
 
   // Admin-only data scope: everyone / one manager's team / one NonStop agent.
   // Managers don't get a picker — the database locks them to their own team.
@@ -153,7 +159,7 @@ function Analytics() {
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) return;
     let cancelled = false;
-    const p = { p_from: range.from, p_to: range.to, ...scopeParams };
+    const p = { p_from: range.from, p_to: range.to, p_source: source, ...scopeParams };
     const prev = previousOf(range);
 
     (async () => {
@@ -161,10 +167,10 @@ function Analytics() {
         supabase!.rpc("analytics_kpis", p),
         supabase!.rpc("events_engagement", p),
         supabase!.rpc("events_active_hours", p),
-        supabase!.rpc("age_distribution", p),
+        supabase!.rpc("age_distribution", { p_from: range.from, p_to: range.to, ...scopeParams }),
         supabase!.rpc("top_content", p),
         supabase!.rpc("leaderboard", p),
-        supabase!.rpc("leaderboard", { p_from: prev.from, p_to: prev.to, ...scopeParams }),
+        supabase!.rpc("leaderboard", { p_from: prev.from, p_to: prev.to, p_source: source, ...scopeParams }),
       ]);
       if (cancelled) return;
 
@@ -215,7 +221,9 @@ function Analytics() {
         setTopContent(
           rows.map((r) => ({
             ref: r.ref,
-            title: lessons.find((l) => l.id === r.ref)?.title ?? "Untitled lesson",
+            title:
+              lessons.find((l) => l.id === r.ref)?.title ??
+              (r.ref.startsWith("wt-") ? "Weekly training lesson" : "Untitled lesson"),
             views: r.views,
             completion:
               r.views > 0
@@ -257,7 +265,7 @@ function Analytics() {
     return () => {
       cancelled = true;
     };
-  }, [range, lessons, totalLessons, scopeParams]);
+  }, [range, lessons, totalLessons, scopeParams, source]);
 
   // load the full user list (name + email) — admin-only server route
   useEffect(() => {
@@ -354,6 +362,26 @@ function Analytics() {
         meta={`${range.label} · vs previous period · NonStop Financial`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1 text-xs">
+              {(
+                [
+                  ["all", "Both"],
+                  ["course", "Program"],
+                  ["weekly", "Weekly"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setSource(id)}
+                  title="Which training the numbers cover"
+                  className={`rounded-lg px-3 py-1.5 font-semibold transition ${
+                    source === id ? "bg-nonstop text-white" : "text-white/50 hover:text-white"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {canBeAdmin ? (
               <select
                 value={scope}

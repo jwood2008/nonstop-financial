@@ -165,6 +165,22 @@ interface Store {
   course: Course;
   resetCourse: () => void;
 
+  /** the signed-in user's Supabase id (null in local preview) */
+  userId: string | null;
+
+  // weekly training — one program per manager's team, weeks instead of
+  // modules. Same lesson/block shape as the course, so the same editors
+  // (ContentBlockView, quizzes) work; block/lesson ids are 'wt-' prefixed
+  // so analytics can split course vs weekly.
+  teamId: string | null; // whose team's training is loaded (manager's id)
+  setTeamId: (id: string | null) => void;
+  teamCourse: Course | null;
+  addWeek: () => string;
+  removeWeek: (weekId: string) => void;
+  updateWeekTitle: (weekId: string, title: string) => void;
+  addWeekLesson: (weekId: string) => string;
+  removeWeekLesson: (lessonId: string) => void;
+
   // editing (admin)
   updateBlock: (lessonId: string, blockId: string, patch: Partial<ContentBlock>) => void;
   addBlock: (lessonId: string, type: BlockType) => void;
@@ -216,13 +232,14 @@ const Ctx = createContext<Store | null>(null);
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-/** A blank lesson with one empty video block, ready for an admin to fill in. */
-function newLesson() {
+/** A blank lesson with one empty video block. Weekly-training lessons get a
+ *  'wt-' id prefix so analytics can tell the two programs apart. */
+function newLesson(prefix = "") {
   return {
-    id: uid(),
+    id: prefix + uid(),
     title: "New Lesson",
     duration: "0 min",
-    blocks: [{ id: uid(), type: "video" as const, src: "", caption: "" }],
+    blocks: [{ id: prefix + uid(), type: "video" as const, src: "", caption: "" }],
     files: [],
     transcript: "",
   };
@@ -241,6 +258,9 @@ function read<T>(key: string, fallback: T): T {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [teamId, setTeamIdState] = useState<string | null>(null);
+  const [teamCourse, setTeamCourse] = useState<Course | null>(null);
   const [role, setRoleState] = useState<Role>("user");
   const [course, setCourse] = useState<Course>(SEED_COURSE);
   const [spotlights, setSpotlights] = useState<Spotlight[]>(DEFAULT_SPOTLIGHTS);
@@ -267,6 +287,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const remoteLoadedForRef = useRef<string | null>(null); // user id already loaded
   const courseSyncedRef = useRef<string | null>(null); // JSON of last loaded/saved course
   const spotlightsSyncedRef = useRef<string | null>(null);
+  const teamSyncedRef = useRef<string | null>(null);
   const progressLoadedRef = useRef(false);
   const progressSyncedRef = useRef<string | null>(null);
 
@@ -424,6 +445,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const user = data.session?.user;
       if (user) {
         setEmail(user.email ?? null);
+        setUserId(user.id);
         void loadProfile(user.id);
         void loadRemote(user.id);
       }
@@ -443,10 +465,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const user = session?.user;
       if (user) {
         setEmail(user.email ?? null);
+        setUserId(user.id);
         void loadProfile(user.id);
         void loadRemote(user.id);
       } else {
         setEmail(null);
+        setUserId(null);
       }
     });
     unsub = sub.subscription;
@@ -549,6 +573,63 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setRoleState(canBeAdmin ? "admin" : "user");
   }, [canBeAdmin]);
+
+  // Which team's weekly training to show: managers → their own; agents →
+  // their manager's. Admins pick one in the Weekly tab (setTeamId).
+  useEffect(() => {
+    if (teamId) return;
+    if (isManager && userId) setTeamIdState(userId);
+    else if (profile.managerId) setTeamIdState(profile.managerId);
+  }, [teamId, isManager, userId, profile.managerId]);
+
+  // load the team's weekly program
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !teamId || !email) {
+      setTeamCourse(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase!
+        .from("team_training")
+        .select("content")
+        .eq("manager_id", teamId)
+        .maybeSingle();
+      if (cancelled) return;
+      const modules =
+        ((data?.content as { modules?: Course["modules"] } | null)?.modules ??
+          []) as Course["modules"];
+      const tc: Course = { id: `weekly-${teamId}`, title: "Weekly Training", modules };
+      setTeamCourse(tc);
+      teamSyncedRef.current = JSON.stringify(tc);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, email]);
+
+  // publish weekly-training edits (the team's manager, or an admin)
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !teamCourse || !teamId) return;
+    const canEditTeam = canBeAdmin || (isManager && teamId === userId);
+    if (!canEditTeam) return;
+    const json = JSON.stringify(teamCourse);
+    if (json === teamSyncedRef.current) return;
+    if (json.length > 5_000_000) {
+      console.warn("[weekly sync] program too large to publish — use video URLs, not uploads.");
+      return;
+    }
+    const t = setTimeout(async () => {
+      const { error } = await supabase!.from("team_training").upsert({
+        manager_id: teamId,
+        content: { modules: teamCourse.modules },
+        updated_by: email,
+      });
+      if (!error) teamSyncedRef.current = json;
+      else console.warn("[weekly sync] save failed:", error.message);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [teamCourse, ready, canBeAdmin, isManager, teamId, userId, email]);
 
   // Publish curriculum edits to Supabase (ADMINS only — managers view
   // analytics but don't edit content; RLS enforces it too).
@@ -719,6 +800,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (isSupabaseConfigured && supabase) void supabase.auth.signOut();
     profileLoadedRef.current = false;
     remoteLoadedForRef.current = null;
+    teamSyncedRef.current = null;
+    setTeamIdState(null);
+    setTeamCourse(null);
     progressLoadedRef.current = false;
     progressSyncedRef.current = null;
     courseSyncedRef.current = null;
@@ -872,11 +956,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   };
 
   // ---- course mutations ----
+  const courseHasLesson = (c: Course, lessonId: string) =>
+    c.modules.some((m) => m.lessons.some((l) => l.id === lessonId));
+
+  // Mutations route to whichever program holds the lesson — the main course
+  // or the team's weekly training — so the same editors drive both.
   const mutateLesson = (
     lessonId: string,
     fn: (lesson: Course["modules"][0]["lessons"][0]) => void
   ) => {
     setCourse((prev) => {
+      if (!courseHasLesson(prev, lessonId)) return prev;
+      const next: Course = structuredClone(prev);
+      for (const m of next.modules) {
+        const l = m.lessons.find((x) => x.id === lessonId);
+        if (l) {
+          fn(l);
+          break;
+        }
+      }
+      return next;
+    });
+    setTeamCourse((prev) => {
+      if (!prev || !courseHasLesson(prev, lessonId)) return prev;
       const next: Course = structuredClone(prev);
       for (const m of next.modules) {
         const l = m.lessons.find((x) => x.id === lessonId);
@@ -892,7 +994,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // A lesson that contains trackable video can only be completed once that
   // video has been watched past the threshold — no skipping to the end.
   const lessonWatchSatisfied = (lessonId: string): boolean => {
-    const lesson = course.modules
+    const lesson = [...course.modules, ...(teamCourse?.modules ?? [])]
       .flatMap((m) => m.lessons)
       .find((l) => l.id === lessonId);
     if (!lesson) return true;
@@ -959,6 +1061,60 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       course,
       resetCourse: () => setCourse(structuredClone(SEED_COURSE)),
 
+      userId,
+      teamId,
+      setTeamId: (id) => setTeamIdState(id),
+      teamCourse,
+      addWeek: () => {
+        const id = "wt-" + uid();
+        setTeamCourse((prev) => {
+          if (!prev) return prev;
+          const next: Course = structuredClone(prev);
+          next.modules.push({
+            id,
+            title: `Week ${next.modules.length + 1}`,
+            lessons: [newLesson("wt-")],
+          });
+          return next;
+        });
+        return id;
+      },
+      removeWeek: (weekId) =>
+        setTeamCourse((prev) => {
+          if (!prev) return prev;
+          const next: Course = structuredClone(prev);
+          next.modules = next.modules.filter((m) => m.id !== weekId);
+          return next;
+        }),
+      updateWeekTitle: (weekId, title) =>
+        setTeamCourse((prev) => {
+          if (!prev) return prev;
+          const next: Course = structuredClone(prev);
+          const m = next.modules.find((x) => x.id === weekId);
+          if (m) m.title = title;
+          return next;
+        }),
+      addWeekLesson: (weekId) => {
+        const lesson = newLesson("wt-");
+        setTeamCourse((prev) => {
+          if (!prev) return prev;
+          const next: Course = structuredClone(prev);
+          const m = next.modules.find((x) => x.id === weekId);
+          if (m) m.lessons.push(lesson);
+          return next;
+        });
+        return lesson.id;
+      },
+      removeWeekLesson: (lessonId) =>
+        setTeamCourse((prev) => {
+          if (!prev) return prev;
+          const next: Course = structuredClone(prev);
+          for (const m of next.modules) {
+            m.lessons = m.lessons.filter((l) => l.id !== lessonId);
+          }
+          return next;
+        }),
+
       updateBlock: (lessonId, blockId, patch) =>
         mutateLesson(lessonId, (l) => {
           const b = l.blocks.find((x) => x.id === blockId);
@@ -966,7 +1122,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }),
       addBlock: (lessonId, type) =>
         mutateLesson(lessonId, (l) => {
-          const block: ContentBlock = { id: uid(), type, src: "", caption: "" };
+          const inWeekly = teamCourse ? courseHasLesson(teamCourse, lessonId) : false;
+          const block: ContentBlock = {
+            id: (inWeekly ? "wt-" : "") + uid(),
+            type,
+            src: "",
+            caption: "",
+          };
           if (type === "quiz") {
             block.quiz = { kind: "mcq", title: "Quiz", questions: [], pairs: [] };
           }
@@ -1113,7 +1275,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       canCompleteLesson: lessonWatchSatisfied,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, spotlights, personas, quizResults, notes, completed, videoProgress]
+    [ready, email, userId, teamId, teamCourse, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, spotlights, personas, quizResults, notes, completed, videoProgress]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;
