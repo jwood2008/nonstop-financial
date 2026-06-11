@@ -544,17 +544,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Who gets the admin tools (edit + analytics): team admins OR managers.
   const canManage = canBeAdmin || isManager;
 
-  // The "admin" view (edit + analytics) is automatic for anyone who can manage.
-  // Everyone else is a regular user. No manual toggle.
+  // The "admin" view (lesson/content editing) is for team admins ONLY.
+  // Managers get analytics (canManage) but no editing. No manual toggle.
   useEffect(() => {
-    setRoleState(canManage ? "admin" : "user");
-  }, [canManage]);
+    setRoleState(canBeAdmin ? "admin" : "user");
+  }, [canBeAdmin]);
 
-  // Publish curriculum edits to Supabase (staff only — RLS enforces it too).
+  // Publish curriculum edits to Supabase (ADMINS only — managers view
+  // analytics but don't edit content; RLS enforces it too).
   // Debounced; skipped when the course matches what's already saved, and when
   // embedded data-URL media makes the JSON too large to ship in one request.
   useEffect(() => {
-    if (!ready || !isSupabaseConfigured || !supabase || !canManage) return;
+    if (!ready || !isSupabaseConfigured || !supabase || !canBeAdmin) return;
     const json = JSON.stringify(course);
     if (json === courseSyncedRef.current) return;
     if (json.length > 5_000_000) {
@@ -574,12 +575,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       else console.warn("[course sync] save failed:", error.message);
     }, 1200);
     return () => clearTimeout(t);
-  }, [course, ready, canManage, email]);
+  }, [course, ready, canBeAdmin, email]);
 
-  // Publish spotlight edits to Supabase (staff only — same table/policies as
-  // the course; stored under the fixed "spotlights" row id).
+  // Publish spotlight edits to Supabase (ADMINS only — same table/policies
+  // as the course; stored under the fixed "spotlights" row id).
   useEffect(() => {
-    if (!ready || !isSupabaseConfigured || !supabase || !canManage) return;
+    if (!ready || !isSupabaseConfigured || !supabase || !canBeAdmin) return;
     const json = JSON.stringify(spotlights);
     if (json === spotlightsSyncedRef.current) return;
     if (json.length > 5_000_000) {
@@ -596,7 +597,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       else console.warn("[spotlights] save failed:", error.message);
     }, 1200);
     return () => clearTimeout(t);
-  }, [spotlights, ready, canManage, email]);
+  }, [spotlights, ready, canBeAdmin, email]);
 
   // Sync this user's progress to Supabase so it follows them across devices.
   // Waits for the initial remote load (so we merge before we overwrite).

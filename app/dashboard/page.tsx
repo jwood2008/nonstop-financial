@@ -611,7 +611,8 @@ function Leaderboard({ expanded }: { expanded?: boolean }) {
 
 /* ── Spotlight (admin-editable cards: photo, copy, click-through URL) ── */
 function SpotlightSection() {
-  const { spotlights, canManage, addSpotlight, updateSpotlight, removeSpotlight } =
+  // editing spotlights is admin-only (managers are analytics-only)
+  const { spotlights, canBeAdmin, addSpotlight, updateSpotlight, removeSpotlight } =
     useStore();
   const [editing, setEditing] = useState(false);
 
@@ -630,7 +631,7 @@ function SpotlightSection() {
   return (
     <section className="mt-10">
       <div className="relative">
-        {canManage && (
+        {canBeAdmin && (
           <button
             onClick={() => setEditing((e) => !e)}
             className={`absolute right-0 top-0 z-10 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
@@ -658,7 +659,7 @@ function SpotlightSection() {
         />
       </div>
 
-      {canManage && editing && (
+      {canBeAdmin && editing && (
         <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-xs text-white/45">
             Changes publish to everyone automatically. Links can go anywhere — a
