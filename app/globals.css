@@ -446,3 +446,14 @@ html.light .on-media .bg-white\/\[0\.04\] {
 html.light .on-media .bg-white\/10 {
   background-color: rgba(255, 255, 255, 0.1);
 }
+
+/* --- placeholders: `placeholder:text-white/NN` is its own class, so the
+       light-mode color flips above never catch it — white placeholder on a
+       light input = invisible. Flip all of them in light mode; keep them
+       white inside kept-dark `.on-media` regions. --- */
+html.light [class*="placeholder:text-white"]::placeholder {
+  color: rgba(9, 9, 11, 0.4);
+}
+html.light .on-media [class*="placeholder:text-white"]::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
