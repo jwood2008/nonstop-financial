@@ -9,7 +9,8 @@ import { ArrowRight, Check } from "lucide-react";
 import { Text_03 } from "@/components/ui/wave-text";
 import { IntroOverlay } from "@/components/IntroOverlay";
 
-const PRICE = process.env.NEXT_PUBLIC_PRICE_LABEL || "$497";
+const PRICE = process.env.NEXT_PUBLIC_PRICE_LABEL || "$2,000";
+const MONTHLY = process.env.NEXT_PUBLIC_MONTHLY_LABEL || "$75";
 
 // Landing alternates ink (near-black) and paper (warm off-white) bands for a
 // professional, editorial feel. Colors are explicit so the page reads the same
@@ -257,7 +258,7 @@ export default function Landing() {
                   {PRICE}
                 </span>
                 <span className="text-sm text-zinc-500">
-                  one-time · full access
+                  one-time · or {MONTHLY}/month
                 </span>
               </div>
 

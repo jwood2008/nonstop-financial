@@ -125,9 +125,26 @@ function Analytics() {
   // Which program the numbers cover: the main course, weekly training, or both.
   const [source, setSource] = useState<"all" | "course" | "weekly">("all");
 
-  // Admin-only data scope: everyone / one manager's team / one NonStop agent.
-  // Managers don't get a picker — the database locks them to their own team.
+  // Data scope: everyone / one manager's team / one person.
+  // Admins pick anything; managers can drill into members of their own
+  // team (the database rejects anyone else's id for them).
   const [scope, setScope] = useState("all"); // "all" | "team:<id>" | "user:<id>"
+  const isManagerOnly = canManage && !canBeAdmin;
+  const [team, setTeam] = useState<
+    { id: string; name: string; email: string | null; joined: string | null }[]
+  >([]);
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase || !isManagerOnly) return;
+    let cancelled = false;
+    void supabase
+      .rpc("my_team")
+      .then(({ data, error }) => {
+        if (!cancelled && !error && data) setTeam(data as typeof team);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isManagerOnly]);
   const scopeParams = useMemo(
     () =>
       scope.startsWith("team:")
@@ -417,7 +434,11 @@ function Analytics() {
               </select>
             ) : (
               <span className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/55">
-                Scope: your team
+                {scope.startsWith("user:")
+                  ? `Viewing: ${
+                      team.find((m) => `user:${m.id}` === scope)?.name ?? "one member"
+                    }`
+                  : "Scope: your team"}
               </span>
             )}
             <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.04] p-1 text-xs">
@@ -471,6 +492,64 @@ function Analytics() {
           </div>
         }
       />
+
+      {/* My Team — managers click a member to see their individual numbers */}
+      {isManagerOnly && team.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/45">
+              My Team · {team.length} member{team.length === 1 ? "" : "s"}
+            </p>
+            {scope !== "all" && (
+              <button
+                onClick={() => setScope("all")}
+                className="text-xs font-semibold text-nonstop transition hover:underline"
+              >
+                ← Back to whole team
+              </button>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => setScope("all")}
+              className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
+                scope === "all"
+                  ? "bg-nonstop text-white"
+                  : "border border-white/10 bg-white/[0.04] text-white/65 hover:text-white"
+              }`}
+            >
+              Whole team
+            </button>
+            {team.map((m) => {
+              const active = scope === `user:${m.id}`;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setScope(active ? "all" : `user:${m.id}`)}
+                  title={m.email ?? undefined}
+                  className={`rounded-xl px-3.5 py-2 text-left text-xs transition ${
+                    active
+                      ? "bg-nonstop text-white"
+                      : "border border-white/10 bg-white/[0.04] text-white/65 hover:text-white"
+                  }`}
+                >
+                  <span className="font-semibold">{m.name}</span>
+                  {m.joined && (
+                    <span className={`ml-2 ${active ? "text-white/70" : "text-white/35"}`}>
+                      since {new Date(m.joined).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2.5 text-[11px] text-white/35">
+            Click a member to see their individual analytics — every chart and KPI
+            above and below switches to just that person. Click again to return to
+            the whole team.
+          </p>
+        </div>
+      )}
 
       {/* top content */}
       <div className="mt-6">

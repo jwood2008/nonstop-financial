@@ -6,14 +6,14 @@ import { useStore } from "@/lib/store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Check, ShieldCheck, Loader2, BadgeCheck, ArrowRight } from "lucide-react";
 
-const PRICE_LABEL = process.env.NEXT_PUBLIC_PRICE_LABEL ?? "$497";
+const PRICE_LABEL = process.env.NEXT_PUBLIC_PRICE_LABEL ?? "$2,000";
+const MONTHLY_LABEL = process.env.NEXT_PUBLIC_MONTHLY_LABEL ?? "$75";
 
 const FEATURES = [
   "Full Producer Development Path",
   "Every training module & video lesson",
   "Quizzes, certification & downloadable certificate",
   "AI coaching and cold-call practice",
-  "Lifetime access — one payment, no subscription",
 ];
 
 export default function UpgradePage() {
@@ -26,7 +26,7 @@ export default function UpgradePage() {
 
 function Upgrade() {
   const { hasPaid, refreshPaid } = useStore();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"full" | "monthly" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -39,9 +39,9 @@ function Upgrade() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pay = async () => {
+  const pay = async (plan: "full" | "monthly") => {
     setError(null);
-    setBusy(true);
+    setBusy(plan);
     try {
       if (!isSupabaseConfigured || !supabase)
         throw new Error("Payments aren't configured yet.");
@@ -51,7 +51,11 @@ function Upgrade() {
       if (!session) throw new Error("Please log in first.");
       const res = await fetch("/api/checkout", {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ plan }),
       });
       const json = await res.json();
       if (!res.ok || !json.url)
@@ -59,7 +63,7 @@ function Upgrade() {
       window.location.href = json.url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
-      setBusy(false);
+      setBusy(null);
     }
   };
 
@@ -96,7 +100,7 @@ function Upgrade() {
               <span className="mb-1.5 text-sm text-white/45">one-time</span>
             </div>
             <p className="mt-2 text-sm text-white/55">
-              Unlock the entire platform with a single payment.
+              — or {MONTHLY_LABEL}/month. Same access either way.
             </p>
           </div>
 
@@ -128,17 +132,40 @@ function Upgrade() {
               </p>
             )}
 
-            <button
-              onClick={pay}
-              disabled={busy}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-nonstop px-6 py-3 text-sm font-semibold text-white transition hover:bg-nonstop-dark disabled:opacity-60"
-            >
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>Pay {PRICE_LABEL} & unlock</>
-              )}
-            </button>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                onClick={() => pay("full")}
+                disabled={busy !== null}
+                className="flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl bg-nonstop px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-nonstop-dark disabled:opacity-60"
+              >
+                {busy === "full" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>Pay {PRICE_LABEL} once</span>
+                    <span className="text-[11px] font-normal text-white/70">
+                      full access, forever
+                    </span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => pay("monthly")}
+                disabled={busy !== null}
+                className="flex w-full flex-col items-center justify-center gap-0.5 rounded-2xl border border-nonstop/50 bg-nonstop/10 px-5 py-3.5 text-sm font-semibold text-nonstop transition hover:bg-nonstop/20 disabled:opacity-60"
+              >
+                {busy === "monthly" ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <span>{MONTHLY_LABEL}/month</span>
+                    <span className="text-[11px] font-normal text-nonstop/80">
+                      cancel anytime
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
 
             <p className="mt-4 flex items-center justify-center gap-1.5 text-[11px] text-white/40">
               <ShieldCheck className="h-3.5 w-3.5" />

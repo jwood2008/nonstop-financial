@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { stripe, PRICE_CENTS, PRODUCT_NAME } from "@/lib/stripe";
+import { stripe, PRICE_CENTS, PRODUCT_NAME, MONTHLY_CENTS, MONTHLY_PRODUCT_NAME } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
@@ -42,20 +42,31 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // plan: "full" (one-time, default) or "monthly" (subscription)
+  const body = await req.json().catch(() => ({}));
+  const monthly = body?.plan === "monthly";
+
   const origin = req.headers.get("origin") ?? req.nextUrl.origin;
   const session = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode: monthly ? "subscription" : "payment",
     customer_email: user.email ?? undefined,
     client_reference_id: user.id,
     metadata: { user_id: user.id },
     line_items: [
       {
         quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: PRICE_CENTS,
-          product_data: { name: PRODUCT_NAME },
-        },
+        price_data: monthly
+          ? {
+              currency: "usd",
+              unit_amount: MONTHLY_CENTS,
+              recurring: { interval: "month" },
+              product_data: { name: MONTHLY_PRODUCT_NAME },
+            }
+          : {
+              currency: "usd",
+              unit_amount: PRICE_CENTS,
+              product_data: { name: PRODUCT_NAME },
+            },
       },
     ],
     success_url: `${origin}/upgrade?status=success`,

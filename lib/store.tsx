@@ -471,7 +471,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Supabase: resolve the session before marking ready so authenticated
     // users aren't bounced to the landing page on a hard refresh.
     let unsub: { unsubscribe: () => void } | undefined;
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      // A stored session whose refresh token the server no longer knows
+      // (db reset, token rotated) — purge it so it doesn't error every load.
+      if (error) void supabase!.auth.signOut();
       const user = data.session?.user;
       if (user) {
         setEmail(user.email ?? null);
