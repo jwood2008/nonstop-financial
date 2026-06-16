@@ -14,7 +14,6 @@
 // (supabase/admins.sql). Sub-admins added at runtime live in Supabase, not here.
 export const ADMIN_EMAILS: string[] = [
   "james.l.wood@outlook.com",
-  "jameslwood589@gmail.com",
 ];
 
 /** The identity used by the fake "click to login" flow. */

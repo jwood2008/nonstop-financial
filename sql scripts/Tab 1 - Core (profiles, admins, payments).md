@@ -6,7 +6,7 @@ Idempotent — safe to re-run. Run this tab FIRST.
 Combines: `schema.sql` + `admins.sql` + `payments.sql`
 
 - Profiles table, signup trigger, role ladder protection
-- Admin tiers (owners + sub-admins) — seeds james.l.wood@outlook.com and jameslwood589@gmail.com as owners
+- Admin tiers (owners + sub-admins) — seeds james.l.wood@outlook.com as the owner
 - Stripe purchases table + `has_purchased()`
 
 ```sql
@@ -166,13 +166,13 @@ alter table public.app_admins enable row level security;
 delete from public.app_admins where email in (
   'greg@lecgroup.com',
   'jay@nonstopfinancial.com',
-  'admin@nonstopfinancial.com'
+  'admin@nonstopfinancial.com',
+  'jameslwood589@gmail.com'
 );
 
--- Seed the bootstrap owners (keep in sync with lib/admins.ts).
+-- Seed the bootstrap owner (keep in sync with lib/admins.ts).
 insert into public.app_admins (email, role) values
-  ('james.l.wood@outlook.com', 'owner'),
-  ('jameslwood589@gmail.com', 'owner')
+  ('james.l.wood@outlook.com', 'owner')
 on conflict (email) do update set role = 'owner';
 
 -- The caller's tier: 'owner' | 'admin' | null

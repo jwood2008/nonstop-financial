@@ -23,13 +23,13 @@ alter table public.app_admins enable row level security;
 delete from public.app_admins where email in (
   'greg@lecgroup.com',
   'jay@nonstopfinancial.com',
-  'admin@nonstopfinancial.com'
+  'admin@nonstopfinancial.com',
+  'jameslwood589@gmail.com'
 );
 
--- Seed the bootstrap owners (keep in sync with lib/admins.ts).
+-- Seed the bootstrap owner (keep in sync with lib/admins.ts).
 insert into public.app_admins (email, role) values
-  ('james.l.wood@outlook.com', 'owner'),
-  ('jameslwood589@gmail.com', 'owner')
+  ('james.l.wood@outlook.com', 'owner')
 on conflict (email) do update set role = 'owner';
 
 -- The caller's tier: 'owner' | 'admin' | null
