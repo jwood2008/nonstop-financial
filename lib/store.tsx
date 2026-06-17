@@ -468,6 +468,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // A recovery link can fire PASSWORD_RECOVERY before onAuthStateChange
+    // subscribes below. Catch it synchronously from the URL hash so the user
+    // always reaches the reset form and is never auto-routed to the dashboard.
+    if (
+      typeof window !== "undefined" &&
+      window.location.hash.includes("type=recovery") &&
+      !window.location.pathname.startsWith("/reset-password")
+    ) {
+      window.location.replace("/reset-password");
+      return;
+    }
+
     // Supabase: resolve the session before marking ready so authenticated
     // users aren't bounced to the landing page on a hard refresh.
     let unsub: { unsubscribe: () => void } | undefined;
@@ -891,10 +903,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           // age-based analytics) keep working unchanged
           data: { name: name.trim(), age, birthdate, manager_id: managerId || "" },
           emailRedirectTo:
-            typeof window !== "undefined" ? window.location.origin : undefined,
+            typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
         },
       });
       if (error) return { ok: false, error: error.message };
+      // Supabase hides "email already registered" to prevent enumeration by
+      // returning a user with an empty identities[]. Detect it so an existing
+      // user is told to log in instead of waiting for a confirmation email.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        return { ok: false, error: "An account with this email already exists — log in instead." };
+      }
       setProfile({
         ...DEFAULT_PROFILE,
         name: name.trim(),
@@ -975,7 +993,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       email: em.trim().toLowerCase(),
       options: {
         emailRedirectTo:
-          typeof window !== "undefined" ? window.location.origin : undefined,
+          typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined,
       },
     });
     if (error) return { ok: false, error: error.message };

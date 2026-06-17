@@ -189,15 +189,17 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
-      <button
-        onClick={() => {
-          login();
-          router.push("/dashboard");
-        }}
-        className="mt-3 block w-full text-center text-xs text-muted-2 transition hover:text-white"
-      >
-        Just exploring? Enter the preview →
-      </button>
+      {DEMO_MODE && (
+        <button
+          onClick={() => {
+            login();
+            router.push("/dashboard");
+          }}
+          className="mt-3 block w-full text-center text-xs text-muted-2 transition hover:text-white"
+        >
+          Just exploring? Enter the preview →
+        </button>
+      )}
     </AuthShell>
   );
 }

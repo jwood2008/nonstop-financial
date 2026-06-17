@@ -65,6 +65,9 @@ export default function Landing() {
   const router = useRouter();
 
   useEffect(() => {
+    // Don't steal a password-recovery link into the dashboard — let the
+    // recovery handler route it to /reset-password first.
+    if (typeof window !== "undefined" && window.location.hash.includes("type=recovery")) return;
     if (ready && loggedIn) router.replace("/dashboard");
   }, [ready, loggedIn, router]);
 

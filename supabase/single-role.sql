@@ -36,6 +36,7 @@ begin
     update public.profiles
        set role = case
          when lower(split_part(coalesce(email, ''), '@', 2)) = 'nonstopglobal.co' then 'Agent'
+         when exists (select 1 from public.free_emails f where f.email = old.email) then 'Agent'
          else 'Lead'
        end
      where lower(email) = old.email and role = 'Admin';
