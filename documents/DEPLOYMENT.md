@@ -1,8 +1,8 @@
-22221212222# Deploying NonStop Financial to production (Vercel + Supabase)
+# Deploying NonStop Financial to production (Vercel + Supabase)
 
 Status of your project (checked 2026-06-09):
 
-- ✅ Supabase project `mgavuqjhqflzixbtvvig` is live — auth healthy, tables
+- ✅ Supabase project `gewbnsgydbcvpxbqtrjq` is live — auth healthy, tables
   (`profiles`, `events`, `app_admins`, `purchases`) exist.
 - ✅ Real auth (Supabase email/password + reset) and Stripe payments are coded.
 - ✅ `DEMO_MODE` is now **false** — login goes through real Supabase auth.

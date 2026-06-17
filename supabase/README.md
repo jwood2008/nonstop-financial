@@ -1,6 +1,6 @@
 # Supabase — database setup (single source of truth)
 
-Project: `mgavuqjhqflzixbtvvig` · SQL Editor: https://supabase.com/dashboard/project/mgavuqjhqflzixbtvvig/sql/new
+Project: `gewbnsgydbcvpxbqtrjq` · SQL Editor: https://supabase.com/dashboard/project/gewbnsgydbcvpxbqtrjq/sql/new
 
 These six numbered files are the **complete, ordered, idempotent** schema for
 NonStop Financial. Re-running any of them is always safe. They replace the old
