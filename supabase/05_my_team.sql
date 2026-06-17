@@ -1,15 +1,13 @@
 -- =====================================================================
--- NonStop Financial — "My Team" analytics for managers
--- Paste into the Supabase SQL Editor. Idempotent. Run AFTER teams.sql
--- and weekly-training.sql.
+-- NonStop Financial — 05 · "My Team" analytics (manager drill-down)
+-- Run AFTER 04_weekly_training.sql. Idempotent — safe to re-run.
 --
---  · analytics_scope now honors p_user for Managers when that user is on
---    their own team — so a manager can click one member and see that
---    person's individual analytics. (Previously p_user was admin-only
---    and silently ignored for managers; their scope was always the
---    whole team.) A manager still can NOT see anyone outside their team.
---  · my_team() — the caller's team list for the "My Team" panel.
---    Returns rows only when the caller's role is Manager.
+-- Same as the former my-team.sql.
+--   · analytics_scope now honors p_user for Managers when that user is on
+--     their own team — a manager can click one member and see that
+--     person's individual analytics. (A manager still can NOT see anyone
+--     outside their team.)
+--   · my_team() — the caller's team list for the "My Team" panel.
 -- =====================================================================
 
 create or replace function public.analytics_scope(p_manager uuid, p_user uuid)

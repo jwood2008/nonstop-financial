@@ -1,29 +1,15 @@
-# Tab 3 — Teams, single-role pipeline, admin-only content
-
-Paste after Tab 2. Idempotent — safe to re-run.
-
-Combines: `teams.sql` + `single-role.sql` + `admin-only-content.sql`
-(`analytics-hardening.sql` is NOT needed — this tab includes everything from it.)
-
-- `profiles.manager_id` + `list_managers()` — agents pick a Manager at signup/Settings
-- `analytics_scope()` — admins see all/team/person; Managers DB-locked to their own team
-- One role per person: Lead → Agent → Manager → Admin; app_admins ↔ role kept in sync
-- Course content editing becomes admin-only (`is_admin()` defined here)
-
-After running: promote your managers in **Analytics → Users**.
-
-```sql
 -- =====================================================================
--- NonStop Financial — Teams (agents → managers) + scoped analytics
--- Paste into the Supabase SQL Editor. Idempotent. Run AFTER
--- analytics.sql (and it safely re-applies the hardening rules).
+-- NonStop Financial — 03 · Teams, single-role pipeline, admin-only content
+-- Run AFTER 02_analytics_content.sql. Idempotent — safe to re-run.
 --
---  · profiles.manager_id — which Manager an agent reports to (picked
---    at signup by anyone with a NonStop email; editable in Settings)
---  · Managers calling the analytics functions are FORCED to their own
---    team's data in the database — the UI filter is just convenience.
---  · Admins can pass p_manager (a manager's user id) to see that
---    team, p_user (any user id) to see one person, or neither = all.
+-- Combines the former teams.sql + single-role.sql + admin-only-content.sql
+-- (this also re-applies everything analytics-hardening.sql used to do).
+--   · profiles.manager_id + list_managers() — agents pick a Manager
+--   · analytics_scope() — admins see all/team/person; Managers DB-locked
+--   · one role per person: Lead → Agent → Manager → Admin (kept in sync)
+--   · course content editing becomes admin-only (is_admin() defined here)
+--
+-- After running: promote your managers in Analytics → Users.
 -- =====================================================================
 
 -- ── team column ─────────────────────────────────────────────────────
@@ -69,7 +55,7 @@ begin
 end;
 $$;
 
--- ── staff helper (same as analytics-hardening.sql, safe to re-run) ──
+-- ── staff helper ────────────────────────────────────────────────────
 create or replace function public.is_staff()
 returns boolean language sql security definer set search_path = public stable as $$
   select exists (select 1 from public.app_admins where email = lower(auth.email()))
@@ -82,7 +68,6 @@ grant execute on function public.is_staff() to authenticated;
 -- admin   : p_user → that person · p_manager → that team · neither → all
 -- Manager : always their own team (their agents + themselves)
 -- agent   : their own team if they have a manager, else everyone
---           (only the leaderboard reaches this branch)
 create or replace function public.analytics_scope(p_manager uuid, p_user uuid)
 returns table (user_id uuid)
 language plpgsql security definer set search_path = public stable as $$
@@ -119,9 +104,6 @@ revoke all on function public.analytics_scope(uuid, uuid) from public, anon;
 grant execute on function public.analytics_scope(uuid, uuid) to authenticated;
 
 -- ── analytics functions: new signatures with optional scope ─────────
--- (old 2-arg versions are dropped so PostgREST RPC stays unambiguous;
---  the app calls them with or without p_manager/p_user)
-
 drop function if exists public.events_engagement(date, date);
 create or replace function public.events_engagement(p_from date, p_to date, p_manager uuid default null, p_user uuid default null)
 returns table (d date, active int, lessons int)
@@ -196,7 +178,6 @@ create or replace function public.leaderboard(p_from date, p_to date, p_manager 
 returns table (name text, completed int, passes int, active_days int)
 language plpgsql security definer set search_path = public as $$
 begin
-  -- any signed-in user; scope rules decide whose rows they see
   return query
     select coalesce(nullif(p.name, ''), split_part(coalesce(p.email, ''), '@', 1)) as name,
            count(*) filter (where e.type = 'lesson_complete')::int as completed,
@@ -363,20 +344,15 @@ grant execute on function public.analytics_kpis(date, date, uuid, uuid) to authe
 
 
 -- =====================================================================
--- NonStop Financial — Single-role pipeline: Lead → Agent → Manager → Admin
--- Paste into the Supabase SQL Editor. Idempotent. Run AFTER teams.sql.
---
--- One role per person. Being on the admin list (app_admins) FORCES the
--- profile role to 'Admin' and clears any team ties (admins run the app,
--- they don't have teams). Removing admin access drops the person back to
--- Agent (NonStop email) or Lead. Managers are only role='Manager' — so
--- the signup manager list and team analytics never include admins.
+-- Single-role pipeline: Lead → Agent → Manager → Admin
+--   Being on app_admins FORCES profile role 'Admin' and clears team ties.
+--   Removing admin access drops back to Agent (NonStop/free email) or Lead.
 -- =====================================================================
 
--- protect_profile_role: still service-role only, but also allow changes
--- made by our own database triggers (the admin-role sync below).
+-- protect_profile_role: service-role only, but allow our own DB triggers
+-- (the admin-role sync below) to change role too.
 create or replace function public.protect_profile_role()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = public as $$
 begin
   if (new.role is distinct from old.role)
      and coalesce(auth.role(), '') <> 'service_role'
@@ -441,8 +417,7 @@ begin
 end;
 $$;
 
--- backfill: everyone currently on the admin list becomes role 'Admin',
--- loses any manager assignment, and is no longer anyone's manager
+-- backfill: everyone currently on the admin list becomes role 'Admin'
 update public.profiles p
    set role = 'Admin', manager_id = null, requested_role = null
  where lower(p.email) in (select email from public.app_admins)
@@ -458,11 +433,7 @@ update public.profiles p
 
 
 -- =====================================================================
--- NonStop Financial — content editing is ADMIN-only
--- Paste into the Supabase SQL Editor. Idempotent. Run AFTER teams.sql.
---
--- Managers are analytics-only: they keep their team's analytics but can
--- no longer write course content or spotlights (course_content table).
+-- Content editing is ADMIN-only (Managers are analytics-only)
 -- =====================================================================
 
 create or replace function public.is_admin()
@@ -479,4 +450,3 @@ create policy "course_insert_staff" on public.course_content
 drop policy if exists "course_update_staff" on public.course_content;
 create policy "course_update_staff" on public.course_content
   for update to authenticated using (public.is_admin()) with check (public.is_admin());
-```

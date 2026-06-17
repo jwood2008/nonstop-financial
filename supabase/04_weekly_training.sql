@@ -1,16 +1,12 @@
 -- =====================================================================
--- NonStop Financial — Weekly Training + team chat
--- Paste into the Supabase SQL Editor. Idempotent.
--- Run AFTER teams.sql and admin-only-content.sql.
+-- NonStop Financial — 04 · Weekly Training + team chat
+-- Run AFTER 03_teams_roles.sql. Idempotent — safe to re-run.
 --
---  · team_training  — one weekly program per manager (weeks of lessons,
---    same shape as the course so the same editor/quizzes work).
---    Team members read it; only that manager (or an admin) writes it.
---  · team_messages  — team chat. Anyone on a manager's team can post;
---    the manager (or an admin) can flag a message as an UPDATE, which
---    pins it in the Weekly Training tab.
---  · Analytics functions gain p_source: weekly-training lesson/quiz ids
---    are prefixed 'wt-', so 'course' | 'weekly' | 'all' can be split.
+-- Same as the former weekly-training.sql.
+--   · team_training  — one weekly program per manager (weeks as "modules")
+--   · team_messages  — team chat; manager/admin posts can be pinned UPDATEs
+--   · analytics functions gain p_source ('all' | 'course' | 'weekly');
+--     weekly-training lesson/quiz ids are prefixed 'wt-'.
 -- =====================================================================
 
 -- ── team membership helper ──────────────────────────────────────────
@@ -76,13 +72,10 @@ create policy "messages_insert_team" on public.team_messages
   with check (
     user_id = auth.uid()
     and public.is_team_member(team_id)
-    -- only the team's manager (or an admin) can post pinned updates
     and (not is_update or auth.uid() = team_id or public.is_admin())
   );
 
 -- ── analytics: add p_source ('all' | 'course' | 'weekly') ───────────
--- Weekly lesson & quiz ids start with 'wt-'; the course's never do.
-
 drop function if exists public.events_engagement(date, date, uuid, uuid);
 create or replace function public.events_engagement(p_from date, p_to date, p_manager uuid default null, p_user uuid default null, p_source text default 'all')
 returns table (d date, active int, lessons int)
@@ -210,7 +203,6 @@ begin
   return query
   with scope as (select user_id from public.analytics_scope(p_manager, p_user)),
   ev as (
-    -- one source-filtered, scope-filtered view of events for every branch
     select * from public.events
     where user_id in (select user_id from scope)
       and (p_source = 'all'
@@ -306,4 +298,4 @@ $$;
 revoke all on function public.analytics_kpis(date, date, uuid, uuid, text) from public, anon;
 grant execute on function public.analytics_kpis(date, date, uuid, uuid, text) to authenticated;
 
--- age_distribution is profile-based (no event source) — unchanged.
+-- age_distribution is profile-based (no event source) — unchanged from 03.

@@ -1,24 +1,11 @@
-# Tab 2 — Analytics, shared content, birthdate
-
-Paste after Tab 1. Idempotent — safe to re-run.
-
-Combines: `analytics.sql` + `content-progress.sql` + `birthdate.sql`
-
-- Events table + analytics functions (these get upgraded again by Tabs 3 and 4 — that's expected)
-- Shared curriculum (`course_content`) + cross-device progress (`user_progress`)
-- Birthday at signup (replaces typed-once age)
-
-```sql
 -- =====================================================================
--- NonStop Financial — Analytics events (Phases 1–3)
--- Run in the Supabase SQL Editor after schema.sql. Idempotent.
+-- NonStop Financial — 02 · Analytics events, shared content, birthdate
+-- Run AFTER 01_core.sql. Idempotent — safe to re-run.
 --
--- The app records lightweight activity events (lesson_complete, quiz_attempt,
--- lesson_view). SECURITY DEFINER functions aggregate them for the analytics
--- widgets — they return only anonymous counts, never per-user rows.
---
--- Phase 3: every function takes a [p_from, p_to] date window so the page can
--- filter by range and compare periods ("last week vs this week").
+-- Combines the former analytics.sql + content-progress.sql + birthdate.sql
+--   · events table + windowed analytics functions (upgraded again in 03/04)
+--   · shared curriculum (course_content) + cross-device progress (user_progress)
+--   · birthday at signup (replaces typed-once age)
 -- =====================================================================
 
 create table if not exists public.events (
@@ -86,8 +73,6 @@ grant execute on function public.events_active_hours(date, date) to authenticate
 create or replace function public.top_content(p_from date, p_to date)
 returns table (ref text, views int, completes int)
 language sql security definer set search_path = public as $$
-  -- unique viewers / completers per lesson (each user counted once), so
-  -- completion can't exceed 100%
   select ref,
          count(distinct user_id) filter (where type = 'lesson_view')::int     as views,
          count(distinct user_id) filter (where type = 'lesson_complete')::int as completes
@@ -119,7 +104,7 @@ language sql security definer set search_path = public as $$
 $$;
 grant execute on function public.leaderboard(date, date) to authenticated, anon;
 
--- Audience age distribution for signups in the window (all-time if range is wide).
+-- Audience age distribution for signups in the window.
 create or replace function public.age_distribution(p_from date, p_to date)
 returns table (label text, value int)
 language sql security definer set search_path = public as $$
@@ -142,23 +127,21 @@ language sql security definer set search_path = public as $$
 $$;
 grant execute on function public.age_distribution(date, date) to authenticated, anon;
 
--- KPI strip: value over the window, delta vs the immediately-preceding window
--- of equal length, and a daily sparkline series across the window.
+-- KPI strip: value over the window, delta vs the preceding window, sparkline.
 create or replace function public.analytics_kpis(p_from date, p_to date)
 returns table (key text, label text, value numeric, suffix text, delta numeric, series numeric[])
 language sql security definer set search_path = public as $$
   with bounds as (
     select p_from as f, p_to as t,
            (p_to - p_from + 1) as len,
-           (p_from - (p_to - p_from + 1)) as pf,   -- previous window from
-           (p_from - 1) as pt                       -- previous window to
+           (p_from - (p_to - p_from + 1)) as pf,
+           (p_from - 1) as pt
   ),
   span as (
     select generate_series((select f from bounds), (select t from bounds), interval '1 day')::date as d
   ),
   daily as (
     select s.d,
-      -- count each user once per lesson per day (a rewatch isn't a new view)
       count(distinct (ev.user_id, ev.ref)) filter (where ev.type = 'lesson_view')     as views,
       count(distinct (ev.user_id, ev.ref)) filter (where ev.type = 'lesson_complete') as completes,
       count(ev.*) filter (where ev.type = 'quiz_attempt')    as quizzes,
@@ -238,26 +221,14 @@ grant execute on function public.analytics_kpis(date, date) to authenticated, an
 
 
 -- =====================================================================
--- NonStop Financial — Shared curriculum + cross-device progress
--- Paste into the Supabase SQL Editor. Idempotent.
---
--- Before this migration, curriculum edits and lesson progress lived only
--- in each browser's localStorage: an admin editing content changed no one
--- else's view, and a user's progress vanished on a new device.
---
---  course_content : one row per course id — the published curriculum
---                   (whole Course object as jsonb). Staff write, all
---                   signed-in users read. The app saves automatically
---                   ~1s after an admin edit.
---  user_progress  : one row per user — completed lessons, video watch
---                   fractions, quiz attempts, notes. Owner-only.
---
--- Note: lessons with large uploaded media (data-URLs) can exceed request
--- limits; the app skips auto-sync above ~5 MB of course JSON and logs a
--- warning. Long-term fix: move uploads to Supabase Storage.
+-- Shared curriculum + cross-device progress
+--   course_content : one row per course id — published curriculum (jsonb).
+--                    Staff write, all signed-in users read.
+--   user_progress  : one row per user — completed lessons, video watch
+--                    fractions, quiz attempts, notes. Owner-only.
 -- =====================================================================
 
--- Staff helper (same as analytics-hardening.sql — safe to re-run)
+-- Staff helper (final auth lands in 03; this bootstrap keeps 02 usable).
 create or replace function public.is_staff()
 returns boolean language sql security definer set search_path = public stable as $$
   select exists (select 1 from public.app_admins where email = lower(auth.email()))
@@ -266,7 +237,6 @@ $$;
 revoke all on function public.is_staff() from public, anon;
 grant execute on function public.is_staff() to authenticated;
 
--- ── published curriculum ────────────────────────────────────────────
 create table if not exists public.course_content (
   id         text primary key,          -- Course.id (curriculum version key)
   content    jsonb not null,            -- the whole Course object
@@ -292,7 +262,6 @@ drop trigger if exists course_content_touch on public.course_content;
 create trigger course_content_touch before update on public.course_content
   for each row execute function public.touch_updated_at();
 
--- ── per-user progress ───────────────────────────────────────────────
 create table if not exists public.user_progress (
   user_id        uuid primary key references auth.users (id) on delete cascade,
   completed      jsonb not null default '[]'::jsonb,  -- lessonId[]
@@ -322,20 +291,14 @@ create trigger user_progress_touch before update on public.user_progress
 
 
 -- =====================================================================
--- NonStop Financial — Birthday at signup
--- Paste into the Supabase SQL Editor. Idempotent.
---
--- Signup now asks for a birthday instead of an age. The app derives age
--- from it (and keeps profiles.age fresh on login), so the age-based
--- analytics keep working unchanged — but it never goes stale the way a
--- typed-once age does.
+-- Birthday at signup
+--   Signup asks for a birthday instead of an age. The app derives age
+--   from it (and keeps profiles.age fresh on login).
 -- =====================================================================
 
 alter table public.profiles
   add column if not exists birthdate date;
 
--- Recreate the signup trigger so new users' birthdate lands on the profile.
--- (Age still comes through the metadata too, for the analytics widgets.)
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -358,4 +321,3 @@ begin
   return new;
 end;
 $$;
-```

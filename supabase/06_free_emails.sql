@@ -1,36 +1,17 @@
-# Tab 6 — Free-access email list (agency people without NonStop emails)
-
-Paste after Tab 3. Idempotent — safe to re-run.
-
-Same as: `supabase/free-emails.sql`
-
-- `free_emails` table — emails on it skip payment at signup entirely
-  (same flow as a NonStop email: instant account, confirmation email,
-  manager picker, role 'Agent')
-- `is_free_email()` — the yes/no check the signup form uses
-- `add_free_email()` / `remove_free_email()` / `list_free_emails()` — admin-only
-- Updates the signup trigger so free-listed people land as Agents
-
-To add people (SQL Editor, as an admin — or just edit the `free_emails`
-table in the Table Editor):
-
-    select public.add_free_email('person@gmail.com');
-
-```sql
 -- =====================================================================
--- NonStop Financial — Free-access email list
--- Paste into the Supabase SQL Editor. Idempotent. Run AFTER single-role.sql.
+-- NonStop Financial — 06 · Free-access email list
+-- Run LAST, after 03_teams_roles.sql (and 04/05). Idempotent.
+--
+-- Same as the former free-emails.sql. This file owns the FINAL
+-- handle_new_user() (with the free-email branch), so it must run last.
 --
 -- Agency people without an @nonstopglobal.co address still get free
--- access: put their email on this list and signup skips payment for
--- them entirely (same flow as a NonStop email — account on click,
--- confirmation email, manager picker, role 'Agent').
+-- access: put their email on this list and signup skips payment for them
+-- (same flow as a NonStop email — account on click, confirmation email,
+-- manager picker, role 'Agent').
 --
---  · free_emails       — the list (no direct table access; use the
---                        functions or the Table Editor)
---  · is_free_email()   — anon-callable yes/no check the signup form uses
---  · add_free_email()/remove_free_email()/list_free_emails() — admin-only
---  · handle_new_user() — free-listed signups land as role 'Agent'
+-- To add people (SQL Editor, as an admin — or edit the table directly):
+--     select public.add_free_email('person@gmail.com');
 -- =====================================================================
 
 create table if not exists public.free_emails (
@@ -114,4 +95,3 @@ begin
   return new;
 end;
 $$;
-```
