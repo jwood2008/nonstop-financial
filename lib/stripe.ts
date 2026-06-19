@@ -2,8 +2,14 @@ import Stripe from "stripe";
 
 const key = process.env.STRIPE_SECRET_KEY;
 
-/** Server-side Stripe client. Null until STRIPE_SECRET_KEY is set. */
-export const stripe = key ? new Stripe(key) : null;
+/**
+ * Server-side Stripe client. Null until STRIPE_SECRET_KEY is set.
+ * apiVersion is pinned to the SDK's version so the response shape (e.g. where
+ * `current_period_end` lives) can't silently shift under us on an SDK bump.
+ */
+export const stripe = key
+  ? new Stripe(key, { apiVersion: "2026-05-27.dahlia" })
+  : null;
 
 /** One-time full-access price in cents (change here or via env). $2,000 default. */
 export const PRICE_CENTS = Number(process.env.PRICE_CENTS ?? 200000);

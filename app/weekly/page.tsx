@@ -440,7 +440,7 @@ function TeamChat({
       // surface WHY instead of failing silently (e.g. migration not run yet)
       setError(
         /PGRST205|schema cache/i.test(err.message)
-          ? "Chat isn't set up yet — run supabase/weekly-training.sql in the SQL Editor."
+          ? "Chat isn't set up yet — run supabase/04_weekly_training.sql in the SQL Editor."
           : err.message
       );
       return;

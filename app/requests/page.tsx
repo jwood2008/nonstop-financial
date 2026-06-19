@@ -24,10 +24,11 @@ export default function RequestsPage() {
 }
 
 function Requests() {
-  const { canBeAdmin } = useStore();
+  const { canBeAdmin, isOwner } = useStore();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const authedFetch = useCallback(
     async (url: string, init?: RequestInit) => {
@@ -71,13 +72,32 @@ function Requests() {
 
   const approve = async (u: UserRow) => {
     setBusy(u.id);
+    setError(null);
     if (u.requested_role === "Admin") {
-      // grant team-admin access (keeps their position — e.g. Agent + Admin)
-      await authedFetch("/api/admin/add-admin", {
+      // Granting Admin is owner-only — give instant feedback instead of a
+      // doomed round-trip (the API also enforces this server-side).
+      if (!isOwner) {
+        setError("Only the owner can grant Admin access — ask the owner to approve this one.");
+        setBusy(null);
+        return;
+      }
+      // add-admin still returns 403 for non-owners; check the response so we
+      // don't silently clear the request on failure.
+      const res = await authedFetch("/api/admin/add-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: u.email }),
       });
+      if (!res?.ok) {
+        const j = res ? await res.json().catch(() => ({})) : {};
+        setError(
+          (j as { error?: string }).error ||
+            "Only the owner can grant Admin access — ask the owner to approve this one."
+        );
+        setBusy(null);
+        return;
+      }
+      // grant team-admin access (keeps their position — e.g. Agent + Admin)
       await clearRequest(u);
     } else {
       // promote their position (Manager) — set-role also clears the request
@@ -130,6 +150,12 @@ function Requests() {
           deny to dismiss the request.
         </p>
       </header>
+
+      {error && (
+        <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+          {error}
+        </div>
+      )}
 
       {pending.length === 0 ? (
         <div className="flex flex-col items-center gap-3 border border-dashed border-line-2 py-16 text-center">

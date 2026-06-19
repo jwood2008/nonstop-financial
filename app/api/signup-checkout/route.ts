@@ -19,7 +19,9 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const name = String(body?.name ?? "").trim();
+  // Clamp name: Stripe metadata values are capped at 500 chars, and an
+  // over-long name would throw on sessions.create and block the payment.
+  const name = String(body?.name ?? "").trim().slice(0, 200);
   const email = String(body?.email ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");
   const birthdate = String(body?.birthdate ?? "");

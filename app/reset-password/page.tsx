@@ -34,9 +34,35 @@ export default function ResetPasswordPage() {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) mark();
     });
-    const t = setTimeout(() => {
-      if (!settled) setPhase("invalid");
-    }, 3000);
+
+    // Supabase appends ?error=...&error_description=... on a genuinely
+    // expired/invalid link — fail fast in that case.
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(
+      window.location.search.slice(1) + "&" + hash
+    );
+    if (params.get("error")) {
+      setPhase("invalid");
+      return () => sub.data.subscription.unsubscribe();
+    }
+
+    // Does the URL actually carry a recovery token? supabase-js consumes the
+    // hash on load (detectSessionInUrl), so check before it's cleared.
+    const looksLikeRecovery =
+      params.get("type") === "recovery" ||
+      params.has("access_token") ||
+      params.has("code") ||
+      params.has("token_hash");
+
+    // Only time-bomb to "invalid" when there's NO recovery token at all (a bare
+    // visit). With a token present, keep waiting — a slow network must not
+    // wrongly show "Link expired" on a valid link. Generous fallback either way.
+    const t = setTimeout(
+      () => {
+        if (!settled) setPhase("invalid");
+      },
+      looksLikeRecovery ? 15000 : 2000
+    );
     return () => {
       sub.data.subscription.unsubscribe();
       clearTimeout(t);

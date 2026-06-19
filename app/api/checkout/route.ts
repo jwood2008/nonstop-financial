@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { stripe, PRICE_CENTS, PRODUCT_NAME, MONTHLY_CENTS, MONTHLY_PRODUCT_NAME } from "@/lib/stripe";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
@@ -17,7 +16,10 @@ export async function POST(req: NextRequest) {
   if (!token || !url || !anon) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
-  const sb = createClient(url, anon);
+  // Carry the user's token so auth.uid() resolves inside has_purchased() below.
+  const sb = createClient(url, anon, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
   const {
     data: { user },
   } = await sb.auth.getUser(token);
@@ -25,21 +27,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  // already paid? don't let them buy the same lifetime access twice
-  if (supabaseAdmin) {
-    const { data: existing } = await supabaseAdmin
-      .from("purchases")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("status", "paid")
-      .limit(1)
-      .maybeSingle();
-    if (existing) {
-      return NextResponse.json(
-        { error: "You already have access — no need to purchase again." },
-        { status: 409 }
-      );
-    }
+  // Already have access? Block re-purchase for EITHER plan — has_purchased()
+  // is true for a lifetime payment OR an active/trialing subscription, so a
+  // monthly subscriber can't also buy the one-time plan (and vice versa).
+  const { data: alreadyHasAccess } = await sb.rpc("has_purchased");
+  if (alreadyHasAccess === true) {
+    return NextResponse.json(
+      { error: "You already have access — no need to purchase again." },
+      { status: 409 }
+    );
   }
 
   // plan: "full" (one-time, default) or "monthly" (subscription)

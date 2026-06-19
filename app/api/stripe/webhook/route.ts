@@ -90,7 +90,9 @@ export async function POST(req: NextRequest) {
           try {
             const sub = await stripe.subscriptions.retrieve(subId);
             status = sub.status; // active | trialing | past_due | canceled | ...
-            const end = (sub as unknown as { current_period_end?: number }).current_period_end;
+            // As of Stripe API 2026-05-27.dahlia, current_period_end lives on
+            // each subscription ITEM, not the subscription object itself.
+            const end = sub.items?.data?.[0]?.current_period_end;
             if (end) periodEnd = new Date(end * 1000).toISOString();
           } catch {
             /* keep status=active; subscription.updated will reconcile the period */
@@ -121,15 +123,28 @@ export async function POST(req: NextRequest) {
             const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
             const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
             if (url && anon) {
-              await fetch(`${url}/auth/v1/resend`, {
+              const r = await fetch(`${url}/auth/v1/resend`, {
                 method: "POST",
                 headers: { apikey: anon, "Content-Type": "application/json" },
                 body: JSON.stringify({ type: "signup", email: userEmail }),
               });
+              // A paying customer who never gets this email can't log in, so make
+              // the failure observable (don't throw — access is already granted
+              // and a webhook retry would just re-run createUser).
+              if (!r.ok) {
+                console.error(
+                  "[stripe webhook] confirmation resend failed",
+                  r.status,
+                  await r.text().catch(() => "")
+                );
+              }
+            } else {
+              console.error("[stripe webhook] cannot send confirmation: Supabase URL/anon key missing");
             }
           }
-        } catch {
+        } catch (e) {
           // best-effort — access is already granted; don't fail over email
+          console.error("[stripe webhook] confirmation resend threw", e);
         }
         break;
       }
@@ -140,7 +155,8 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
         const status = event.type === "customer.subscription.deleted" ? "canceled" : sub.status;
-        const end = (sub as unknown as { current_period_end?: number }).current_period_end;
+        // current_period_end is on the subscription item (API 2026-05-27.dahlia).
+        const end = sub.items?.data?.[0]?.current_period_end;
         const { error } = await admin
           .from("purchases")
           .update({
