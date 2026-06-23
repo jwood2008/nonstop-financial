@@ -11,7 +11,8 @@
  */
 
 const FROM =
-  process.env.ADMIN_EMAIL_FROM || "NonStop Financial <onboarding@resend.dev>";
+  process.env.ADMIN_EMAIL_FROM ||
+  "NonStop Financial <Noreply@nonstopmedia.co>";
 
 type SendResult = { sent: boolean; error?: string };
 
