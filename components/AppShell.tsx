@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useStore } from "@/lib/store";
+import { PAYMENTS_ENABLED } from "@/lib/flags";
 import { Logo } from "./Brand";
 import NavHeader from "@/components/ui/nav-header";
 import { LogOut, Menu, X, Settings } from "lucide-react";
@@ -29,10 +30,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [menu, setMenu] = useState(false);
 
-  // Paywall is off for now (Stripe is wired but not enforced). Flip to true to
-  // confine unpaid, non-admin users to /upgrade. Admins always bypass.
-  const PAYWALL_ENABLED = false;
-  const locked = PAYWALL_ENABLED && paidReady && !hasPaid && !canManage;
+  // Paywall follows the master payments switch (lib/flags). While payments are
+  // off it stays open; when on, it confines unpaid non-admins to /upgrade.
+  // Admins always bypass.
+  const locked = PAYMENTS_ENABLED && paidReady && !hasPaid && !canManage;
 
   useEffect(() => {
     if (ready && !loggedIn) router.replace("/");

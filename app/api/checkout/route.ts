@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { stripe, PRICE_CENTS, PRODUCT_NAME, MONTHLY_CENTS, MONTHLY_PRODUCT_NAME } from "@/lib/stripe";
+import { PAYMENTS_ENABLED } from "@/lib/flags";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  // Payments are turned off — the gate is locked. Keep the code, refuse checkout.
+  if (!PAYMENTS_ENABLED) {
+    return NextResponse.json({ error: "Payments are currently disabled — access is free." }, { status: 403 });
+  }
   if (!stripe) {
     return NextResponse.json({ error: "Payments are not configured yet." }, { status: 503 });
   }

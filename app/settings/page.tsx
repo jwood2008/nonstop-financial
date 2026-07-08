@@ -8,6 +8,7 @@ import { useStore, ageFromBirthdate, isNonstopEmail, type AdminRow } from "@/lib
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
 import { REQUESTABLE_ROLES, DEFAULT_ROLE } from "@/lib/roles";
+import { PAYMENTS_ENABLED } from "@/lib/flags";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Camera,
@@ -183,7 +184,8 @@ function Settings() {
         <ThemeToggle />
       </Section>
 
-      {/* Billing */}
+      {/* Billing — hidden while payments are off (everyone has free access) */}
+      {PAYMENTS_ENABLED && (
       <Section title="Billing" subtitle="Your access plan.">
         {hasPaid ? (
           <div className="flex items-center gap-2.5">
@@ -207,6 +209,7 @@ function Settings() {
           </div>
         )}
       </Section>
+      )}
 
       {/* Team Admins — owners only */}
       <TeamAdmins />

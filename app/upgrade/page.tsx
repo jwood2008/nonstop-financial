@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useStore } from "@/lib/store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { PAYMENTS_ENABLED } from "@/lib/flags";
 import { Check, ShieldCheck, Loader2, BadgeCheck, ArrowRight } from "lucide-react";
 
 const PRICE_LABEL = process.env.NEXT_PUBLIC_PRICE_LABEL ?? "$2,000";
@@ -67,9 +68,12 @@ function Upgrade() {
     }
   };
 
+  // Payments off → nobody sees a price or a Stripe link; everyone is "all set".
+  const unlocked = hasPaid || !PAYMENTS_ENABLED;
+
   return (
     <div className="mx-auto max-w-lg px-6 py-12">
-      {hasPaid ? (
+      {unlocked ? (
         <div className="rounded-3xl border border-nonstop/40 bg-[#33343a] p-8 text-center shadow-lg shadow-black/30">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-nonstop/15 text-nonstop">
             <BadgeCheck className="h-7 w-7" />
@@ -78,7 +82,9 @@ function Upgrade() {
             You&apos;re all set
           </h1>
           <p className="mt-2 text-sm text-white/55">
-            Your Producer Access is active. Everything in the platform is unlocked.
+            {PAYMENTS_ENABLED
+              ? "Your Producer Access is active. Everything in the platform is unlocked."
+              : "Full access to NonStop Financial is free right now — everything in the platform is unlocked, no payment needed."}
           </p>
           <a
             href="/dashboard"

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore, ageBracket, ageFromBirthdate, isNonstopEmail } from "@/lib/store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { PAYMENTS_ENABLED } from "@/lib/flags";
 import { ArrowRight, Loader2, MailCheck } from "lucide-react";
 import { AuthShell, AuthField, authInputCls } from "@/components/AuthShell";
 
@@ -26,7 +27,8 @@ export default function SignupPage() {
   // free_emails list (agency people without a NonStop address).
   const nonstop = isNonstopEmail(email);
   const [freeListed, setFreeListed] = useState(false);
-  const freeAccess = nonstop || freeListed;
+  // Payments are off for now → everyone signs up free, no Stripe step.
+  const freeAccess = !PAYMENTS_ENABLED || nonstop || freeListed;
   useEffect(() => {
     if (nonstop || !isSupabaseConfigured || !supabase) return;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -355,7 +357,7 @@ export default function SignupPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              {freeAccess ? "Create account — free for NonStop" : "Create account"}
+              {nonstop ? "Create account — free for NonStop" : "Create account"}
               <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
             </>
           )}
