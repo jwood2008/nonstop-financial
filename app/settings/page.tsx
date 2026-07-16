@@ -32,11 +32,64 @@ export default function SettingsPage() {
 }
 
 function Settings() {
-  const { email, role, profile, updateProfile, logout, hasPaid } = useStore();
+  const { email, role, profile, updateProfile, logout, hasPaid, updatePassword } = useStore();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
   const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [pwOk, setPwOk] = useState(false);
+
+  const changePassword = async () => {
+    setPwMsg(null);
+    setPwOk(false);
+    if (!isSupabaseConfigured || !supabase) {
+      setPwMsg("Password changes aren't available in preview mode.");
+      return;
+    }
+    if (!pwCurrent || !pwNew || !pwConfirm) {
+      setPwMsg("Fill in all three password fields.");
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      setPwMsg("New passwords don't match.");
+      return;
+    }
+    if (pwNew.length < 6) {
+      setPwMsg("New password must be at least 6 characters.");
+      return;
+    }
+    if (pwNew === pwCurrent) {
+      setPwMsg("New password must be different from the current one.");
+      return;
+    }
+    setPwBusy(true);
+    // Verify the current password by re-authenticating — updateUser() alone
+    // would change the password off the session without checking the old one.
+    const { error: signInErr } = await supabase.auth.signInWithPassword({
+      email: email ?? "",
+      password: pwCurrent,
+    });
+    if (signInErr) {
+      setPwBusy(false);
+      setPwMsg("Current password is incorrect.");
+      return;
+    }
+    const res = await updatePassword(pwNew);
+    setPwBusy(false);
+    if (res.ok) {
+      setPwOk(true);
+      setPwMsg("Password updated.");
+      setPwCurrent("");
+      setPwNew("");
+      setPwConfirm("");
+    } else {
+      setPwMsg(res.error);
+    }
+  };
   const [prefs, setPrefs] = useState({
     emailDigest: true,
     productUpdates: false,
@@ -218,27 +271,47 @@ function Settings() {
       <Section title="Security" subtitle="Password and account access.">
         <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Current password">
-            <input type="password" placeholder="••••••••" className={inputCls} />
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder="••••••••"
+              value={pwCurrent}
+              onChange={(e) => setPwCurrent(e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="New password">
-            <input type="password" placeholder="••••••••" className={inputCls} />
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={pwNew}
+              onChange={(e) => setPwNew(e.target.value)}
+              className={inputCls}
+            />
           </Field>
           <Field label="Confirm new">
-            <input type="password" placeholder="••••••••" className={inputCls} />
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={pwConfirm}
+              onChange={(e) => setPwConfirm(e.target.value)}
+              className={inputCls}
+            />
           </Field>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
-            onClick={() =>
-              setPwMsg(
-                "Password updates activate once Supabase auth is connected (no backend in this preview)."
-              )
-            }
-            className="inline-flex items-center gap-1.5 bg-nonstop px-4 py-2 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
+            onClick={changePassword}
+            disabled={pwBusy}
+            className="inline-flex items-center gap-1.5 bg-nonstop px-4 py-2 text-sm font-semibold text-white transition hover:bg-nonstop-dark disabled:opacity-60"
           >
-            <Lock className="h-4 w-4" /> Update password
+            <Lock className="h-4 w-4" /> {pwBusy ? "Updating…" : "Update password"}
           </button>
-          {pwMsg && <span className="text-xs text-muted-2">{pwMsg}</span>}
+          {pwMsg && (
+            <span className={`text-xs ${pwOk ? "text-nonstop" : "text-red-400"}`}>{pwMsg}</span>
+          )}
         </div>
 
         <div className="mt-6 flex items-center justify-between border-t border-line pt-5">
