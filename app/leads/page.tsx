@@ -11,6 +11,7 @@ import type { BlockType, Lesson } from "@/lib/types";
 import {
   ArrowLeft,
   ArrowUpRight,
+  CalendarClock,
   Check,
   ImageIcon,
   ListChecks,
@@ -20,8 +21,35 @@ import {
   Target,
   Trash2,
   Type,
+  UserRound,
   X,
 } from "lucide-react";
+
+/** Ensure a Calendly link is safe + absolute before we open it in a new tab. */
+function normalizeUrl(raw: string): string | null {
+  const url = raw.trim();
+  if (!url) return null;
+  const withProto = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  try {
+    const u = new URL(withProto);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+function initials(name: string): string {
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .map((p) => p[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?"
+  );
+}
 
 /* "In Depth" — lead-type training tracks (IUL, MP, VETS, FEX, Gen Life, …).
    Different agencies run different leads, so each type gets its own track.
@@ -279,7 +307,7 @@ function TrackView({
   const locked = active ? !canCompleteLesson(active.id) && !isDone : false;
 
   return (
-    <div className="mt-8 grid gap-6 lg:grid-cols-[250px_1fr]">
+    <div className="mt-8 grid gap-6 lg:grid-cols-[220px_1fr_300px]">
       <aside className="space-y-1.5">
         {lessons.length === 0 && (
           <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-xs text-white/45">
@@ -399,6 +427,137 @@ function TrackView({
           </>
         )}
       </section>
+
+      <TrackMentors trackId={t.id} editing={editing} />
     </div>
+  );
+}
+
+/* ── "Talk to a mentor" — right-side rail (like the Weekly chat): stacked
+   booking cards + an admin editor, scoped to this track. ── */
+function TrackMentors({ trackId, editing }: { trackId: string; editing: boolean }) {
+  const { mentors, addMentor, updateMentor, removeMentor } = useStore();
+  const mine = mentors.filter((m) => m.trackId === trackId);
+  const bookable = mine.filter((m) => normalizeUrl(m.calendlyUrl));
+
+  return (
+    <aside className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:self-start">
+      {/* header */}
+      <div className="border-b border-white/10 px-4 py-3.5">
+        <div className="flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-nonstop" />
+          <p className="text-sm font-bold text-white">Talk to a mentor</p>
+        </div>
+        <p className="mt-1 text-xs text-white/50">
+          Book a call with a mentor for this track.
+        </p>
+      </div>
+
+      {/* scrollable body — stacked booking cards, then the admin editor */}
+      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+        {bookable.map((m) => {
+          const href = normalizeUrl(m.calendlyUrl)!;
+          return (
+            <div
+              key={m.id}
+              className="rounded-2xl border border-white/10 bg-white/[0.03] p-3.5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-nonstop/15 text-xs font-bold text-nonstop">
+                  {initials(m.name)}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{m.name}</p>
+                  {m.title && <p className="truncate text-xs text-white/50">{m.title}</p>}
+                </div>
+              </div>
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track("mentor_book_click", m.id)}
+                className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-nonstop px-4 py-2 text-sm font-semibold text-white transition hover:bg-nonstop-dark"
+              >
+                <CalendarClock className="h-4 w-4" /> Book a call
+              </a>
+            </div>
+          );
+        })}
+
+        {/* empty state for non-admins */}
+        {!editing && bookable.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-8 text-center">
+            <UserRound className="h-6 w-6 text-white/25" />
+            <p className="text-xs text-white/45">No mentors available yet.</p>
+          </div>
+        )}
+
+        {/* admin editor — shown in "Edit tracks" mode */}
+        {editing && (
+          <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+            <p className="text-xs text-white/45">
+              Add the mentors agents can book for this track. A mentor only appears
+              above once it has a valid Calendly link.
+            </p>
+            {mine.map((m) => (
+              <div
+                key={m.id}
+                className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"
+              >
+                <input
+                  value={m.name}
+                  onChange={(e) => updateMentor(m.id, { name: e.target.value })}
+                  placeholder="Mentor name"
+                  className="w-full rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-sm font-semibold text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+                />
+                <input
+                  value={m.title}
+                  onChange={(e) => updateMentor(m.id, { title: e.target.value })}
+                  placeholder="Title (optional)"
+                  className="w-full rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+                />
+                <div className="flex items-center gap-1.5">
+                  <input
+                    value={m.calendlyUrl}
+                    onChange={(e) => updateMentor(m.id, { calendlyUrl: e.target.value })}
+                    placeholder="Calendly link — https://…"
+                    className="min-w-0 flex-1 rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-xs text-white placeholder:text-white/35 outline-none focus:border-nonstop"
+                  />
+                  {normalizeUrl(m.calendlyUrl) && (
+                    <a
+                      href={normalizeUrl(m.calendlyUrl)!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Test this link"
+                      className="shrink-0 rounded-lg border border-white/10 bg-white/[0.04] p-2 text-white/50 transition hover:text-white"
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                    </a>
+                  )}
+                  <button
+                    onClick={() => removeMentor(m.id)}
+                    title="Remove this mentor"
+                    className="shrink-0 rounded-lg border border-white/10 bg-white/[0.04] p-2 text-white/45 transition hover:border-red-400/40 hover:text-red-300"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {mine.length === 0 && (
+              <div className="flex items-center gap-2 text-xs text-white/40">
+                <UserRound className="h-4 w-4" /> No mentors yet for this track.
+              </div>
+            )}
+            <button
+              onClick={() => addMentor(trackId)}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-white/20 px-3 py-2 text-xs font-semibold text-white/60 transition hover:border-nonstop hover:text-white"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add mentor
+            </button>
+          </div>
+        )}
+      </div>
+    </aside>
   );
 }

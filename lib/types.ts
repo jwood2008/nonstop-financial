@@ -93,3 +93,30 @@ export interface Spotlight {
   /** Background image: external URL or uploaded data-URL. */
   image: string;
 }
+
+/** A lead vendor shown on the "Buy Leads" tab — a named affiliate link agents
+ *  click to purchase leads. Admin-editable and stored in Supabase. */
+export interface LeadVendor {
+  id: string;
+  /** Vendor name, e.g. "Aria Mortgage Leads". */
+  name: string;
+  /** Optional one-line description shown under the name. */
+  description: string;
+  /** The affiliate/referral URL — opens in a new tab. */
+  url: string;
+}
+
+/** A team mentor (leader) an agent can book a call with, shown inside an
+ *  In-Depth track (IUL, Annuities…). Admin-editable and stored in Supabase so
+ *  everyone sees the same list. */
+export interface Mentor {
+  id: string;
+  /** Which In-Depth track this mentor belongs to (leadCourse module id). */
+  trackId: string;
+  /** Mentor's display name. */
+  name: string;
+  /** Optional role/title shown under the name, e.g. "Regional Manager". */
+  title: string;
+  /** Calendly scheduling URL — opens in a new tab when an agent books. */
+  calendlyUrl: string;
+}

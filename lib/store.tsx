@@ -17,6 +17,8 @@ import type {
   BlockType,
   QuizAttempt,
   Spotlight,
+  Mentor,
+  LeadVendor,
 } from "./types";
 import type { Persona } from "./personas";
 import { SEED_COURSE, DEFAULT_SPOTLIGHTS, DEFAULT_LEAD_TRACKS } from "./data";
@@ -45,6 +47,35 @@ const LEADS_DOC_ID = "lead-tracks";
 
 /** course_content row id that holds the dashboard Spotlight cards. */
 const SPOTLIGHTS_DOC_ID = "spotlights";
+
+const LS_MENTORS = "nf.mentors"; // Mentor[]
+
+/** course_content row id that holds the Mentorship (book-a-call) leaders. */
+const MENTORS_DOC_ID = "mentors";
+
+/** No mentors until an admin adds them. */
+const DEFAULT_MENTORS: Mentor[] = [];
+
+const LS_LEAD_VENDORS = "nf.leadVendors"; // LeadVendor[]
+
+/** course_content row id that holds the "Buy Leads" vendor links. */
+const LEAD_VENDORS_DOC_ID = "lead-vendors";
+
+/** Seed vendors — admins can edit/add/remove these on the Buy Leads tab. */
+const DEFAULT_LEAD_VENDORS: LeadVendor[] = [
+  {
+    id: "lv-aria",
+    name: "Aria Mortgage Leads",
+    description: "Mortgage protection leads via Aria.",
+    url: "https://login.ariainsurtech.com/ref/2d4.CYcF6VPa",
+  },
+  {
+    id: "lv-goat",
+    name: "Goat Leads",
+    description: "Sign up and order leads through Goat Leads.",
+    url: "https://goatleads.com/registration/new?affiliate_id=DWKyUpeN1AqE",
+  },
+];
 
 type Theme = "dark" | "light" | "system";
 
@@ -218,6 +249,18 @@ interface Store {
   updateSpotlight: (id: string, patch: Partial<Spotlight>) => void;
   removeSpotlight: (id: string) => void;
 
+  // in-depth mentors (admin-editable: name, title, Calendly link), scoped per track
+  mentors: Mentor[];
+  addMentor: (trackId: string) => string;
+  updateMentor: (id: string, patch: Partial<Mentor>) => void;
+  removeMentor: (id: string) => void;
+
+  // buy-leads vendors (admin-editable: name, description, affiliate URL)
+  leadVendors: LeadVendor[];
+  addLeadVendor: () => string;
+  updateLeadVendor: (id: string, patch: Partial<LeadVendor>) => void;
+  removeLeadVendor: (id: string) => void;
+
   // roleplay personas (admin-editable)
   personas: Persona[];
   addPersona: (p: Persona) => void;
@@ -279,6 +322,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [role, setRoleState] = useState<Role>("user");
   const [course, setCourse] = useState<Course>(SEED_COURSE);
   const [spotlights, setSpotlights] = useState<Spotlight[]>(DEFAULT_SPOTLIGHTS);
+  const [mentors, setMentors] = useState<Mentor[]>(DEFAULT_MENTORS);
+  const [leadVendors, setLeadVendors] = useState<LeadVendor[]>(DEFAULT_LEAD_VENDORS);
   const [personas, setPersonas] = useState<Persona[]>(SEED_PERSONAS);
   const [quizResults, setQuizResults] = useState<Record<string, QuizAttempt[]>>(
     {}
@@ -302,6 +347,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const remoteLoadedForRef = useRef<string | null>(null); // user id already loaded
   const courseSyncedRef = useRef<string | null>(null); // JSON of last loaded/saved course
   const spotlightsSyncedRef = useRef<string | null>(null);
+  const mentorsSyncedRef = useRef<string | null>(null);
+  const leadVendorsSyncedRef = useRef<string | null>(null);
   const teamSyncedRef = useRef<string | null>(null);
   const leadsSyncedRef = useRef<string | null>(null);
   const progressLoadedRef = useRef(false);
@@ -315,7 +362,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (!supabase || remoteLoadedForRef.current === uid) return;
     remoteLoadedForRef.current = uid;
 
-    const [{ data: cc }, { data: sp }, { data: lt }, { data: pr }] = await Promise.all([
+    const [{ data: cc }, { data: sp }, { data: mn }, { data: lv }, { data: lt }, { data: pr }] = await Promise.all([
       supabase
         .from("course_content")
         .select("content")
@@ -325,6 +372,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         .from("course_content")
         .select("content")
         .eq("id", SPOTLIGHTS_DOC_ID)
+        .maybeSingle(),
+      supabase
+        .from("course_content")
+        .select("content")
+        .eq("id", MENTORS_DOC_ID)
+        .maybeSingle(),
+      supabase
+        .from("course_content")
+        .select("content")
+        .eq("id", LEAD_VENDORS_DOC_ID)
         .maybeSingle(),
       supabase
         .from("course_content")
@@ -348,9 +405,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       spotlightsSyncedRef.current = JSON.stringify(remote);
     }
 
+    if (Array.isArray(mn?.content)) {
+      const remote = mn.content as Mentor[];
+      setMentors(remote);
+      mentorsSyncedRef.current = JSON.stringify(remote);
+    }
+
+    if (Array.isArray(lv?.content)) {
+      const remote = lv.content as LeadVendor[];
+      setLeadVendors(remote);
+      leadVendorsSyncedRef.current = JSON.stringify(remote);
+    }
+
     if (lt?.content) {
       const remote = lt.content as Course;
-      if (remote.id === LEADS_DOC_ID) {
+      // Only adopt a saved copy that matches the CURRENT default track set;
+      // an older version (different id) is stale and gets replaced by the default.
+      if (remote.id === DEFAULT_LEAD_TRACKS.id) {
         setLeadCourse(remote);
         leadsSyncedRef.current = JSON.stringify(remote);
       }
@@ -453,7 +524,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const savedCourse = read<Course | null>(LS_COURSE, null);
     setCourse(savedCourse?.id === SEED_COURSE.id ? savedCourse : SEED_COURSE);
     setSpotlights(read<Spotlight[]>(LS_SPOTLIGHTS, DEFAULT_SPOTLIGHTS));
-    setLeadCourse(read<Course>(LS_LEADS, DEFAULT_LEAD_TRACKS));
+    setMentors(read<Mentor[]>(LS_MENTORS, DEFAULT_MENTORS));
+    setLeadVendors(read<LeadVendor[]>(LS_LEAD_VENDORS, DEFAULT_LEAD_VENDORS));
+    // Replace a stale cached track set (older id) with the current default.
+    const savedLeads = read<Course | null>(LS_LEADS, null);
+    setLeadCourse(savedLeads?.id === DEFAULT_LEAD_TRACKS.id ? savedLeads : DEFAULT_LEAD_TRACKS);
     setPersonas(read<Persona[]>(LS_PERSONAS, SEED_PERSONAS));
     setQuizResults(read<Record<string, QuizAttempt[]>>(LS_QUIZ, {}));
     setProfile({ ...DEFAULT_PROFILE, ...read(LS_PROFILE, DEFAULT_PROFILE) });
@@ -533,6 +608,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_SPOTLIGHTS, JSON.stringify(spotlights));
   }, [spotlights, ready]);
+  useEffect(() => {
+    if (ready) window.localStorage.setItem(LS_MENTORS, JSON.stringify(mentors));
+  }, [mentors, ready]);
+  useEffect(() => {
+    if (ready) window.localStorage.setItem(LS_LEAD_VENDORS, JSON.stringify(leadVendors));
+  }, [leadVendors, ready]);
   useEffect(() => {
     if (ready) window.localStorage.setItem(LS_LEADS, JSON.stringify(leadCourse));
   }, [leadCourse, ready]);
@@ -728,6 +809,42 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [spotlights, ready, canBeAdmin, email]);
 
+  // Publish mentor (book-a-call) edits to Supabase (ADMINS only — same table/
+  // policies as the course; stored under the fixed "mentors" row id).
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !canBeAdmin) return;
+    const json = JSON.stringify(mentors);
+    if (json === mentorsSyncedRef.current) return;
+    const t = setTimeout(async () => {
+      const { error } = await supabase!.from("course_content").upsert({
+        id: MENTORS_DOC_ID,
+        content: mentors,
+        updated_by: email,
+      });
+      if (!error) mentorsSyncedRef.current = json;
+      else console.warn("[mentors] save failed:", error.message);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [mentors, ready, canBeAdmin, email]);
+
+  // Publish Buy-Leads vendor edits to Supabase (ADMINS only — same table/
+  // policies as the course; stored under the fixed "lead-vendors" row id).
+  useEffect(() => {
+    if (!ready || !isSupabaseConfigured || !supabase || !canBeAdmin) return;
+    const json = JSON.stringify(leadVendors);
+    if (json === leadVendorsSyncedRef.current) return;
+    const t = setTimeout(async () => {
+      const { error } = await supabase!.from("course_content").upsert({
+        id: LEAD_VENDORS_DOC_ID,
+        content: leadVendors,
+        updated_by: email,
+      });
+      if (!error) leadVendorsSyncedRef.current = json;
+      else console.warn("[lead-vendors] save failed:", error.message);
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [leadVendors, ready, canBeAdmin, email]);
+
   // Publish lead-track ("In Depth") edits to Supabase (ADMINS only —
   // same course_content table/policies, row id "lead-tracks").
   useEffect(() => {
@@ -877,6 +994,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     progressSyncedRef.current = null;
     courseSyncedRef.current = null;
     spotlightsSyncedRef.current = null;
+    mentorsSyncedRef.current = null;
+    leadVendorsSyncedRef.current = null;
     setEmail(null);
     window.localStorage.removeItem(LS_EMAIL);
     setProfile(DEFAULT_PROFILE);
@@ -1373,6 +1492,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       removeSpotlight: (id) =>
         setSpotlights((prev) => prev.filter((s) => s.id !== id)),
 
+      mentors,
+      addMentor: (trackId) => {
+        const id = uid();
+        setMentors((prev) => [
+          ...prev,
+          { id, trackId, name: "New mentor", title: "", calendlyUrl: "" },
+        ]);
+        return id;
+      },
+      updateMentor: (id, patch) =>
+        setMentors((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
+        ),
+      removeMentor: (id) =>
+        setMentors((prev) => prev.filter((m) => m.id !== id)),
+
+      leadVendors,
+      addLeadVendor: () => {
+        const id = uid();
+        setLeadVendors((prev) => [
+          ...prev,
+          { id, name: "New lead vendor", description: "", url: "" },
+        ]);
+        return id;
+      },
+      updateLeadVendor: (id, patch) =>
+        setLeadVendors((prev) =>
+          prev.map((v) => (v.id === id ? { ...v, ...patch } : v))
+        ),
+      removeLeadVendor: (id) =>
+        setLeadVendors((prev) => prev.filter((v) => v.id !== id)),
+
       personas,
       addPersona: (p) => setPersonas((prev) => [...prev, p]),
       updatePersona: (id, patch) =>
@@ -1412,7 +1563,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       canCompleteLesson: lessonWatchSatisfied,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ready, email, userId, teamId, teamCourse, leadCourse, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, spotlights, personas, quizResults, notes, completed, videoProgress]
+    [ready, email, userId, teamId, teamCourse, leadCourse, role, canBeAdmin, canManage, adminStatus, hasPaid, paidReady, theme, profile, accounts, course, spotlights, mentors, leadVendors, personas, quizResults, notes, completed, videoProgress]
   );
 
   return <Ctx.Provider value={store}>{children}</Ctx.Provider>;

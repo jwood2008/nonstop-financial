@@ -55,6 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: "/dashboard", label: "Dashboard" },
     { href: "/learn", label: "Training" },
     { href: "/leads", label: "In Depth" },
+    { href: "/buy-leads", label: "Buy Leads" },
     { href: "/weekly", label: "Weekly" },
     ...(canManage ? [{ href: "/admin", label: "Analytics" }] : []),
     ...(canBeAdmin ? [{ href: "/requests", label: "Requests" }] : []),
