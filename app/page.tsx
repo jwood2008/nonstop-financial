@@ -53,7 +53,7 @@ const PILLARS = [
 ];
 
 const INCLUDED = [
-  "9 modules — Welcome, Mindset, Licensing, Contracting, Product, Sales, Systems, Recruiting, Scale",
+  "10 modules — Welcome, Mindset, Licensing, Contracting, Product, Leads, Sales, Systems, Recruiting, Scale",
   "AI coaching grounded in each lesson",
   "Cold-call roleplay scored in real time",
   "Certification + tracked progress",
@@ -232,7 +232,7 @@ export default function Landing() {
               Everything you need to produce.
             </p>
             <p className="mt-5 text-[15px] leading-relaxed text-zinc-600">
-              The NonStop Academy is the full producer path — nine modules from
+              The NonStop Academy is the full producer path — ten modules from
               licensing to advanced production, plus AI coaching, cold-call
               roleplay, and certification. Learn it once, use it for a career.
             </p>

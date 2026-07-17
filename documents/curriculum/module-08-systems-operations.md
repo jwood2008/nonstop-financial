@@ -1,4 +1,4 @@
-# Module 7: Systems & Daily Operations
+# Module 8: Systems & Daily Operations
 
 Run your business on systems: lead distribution, tracking your numbers, and the
 CRM and tools you'll use daily.

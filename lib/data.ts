@@ -40,7 +40,7 @@ export const DEFAULT_SPOTLIGHTS: Spotlight[] = [
 
 /**
  * Seed course — built from the canonical NONSTOP FINANCIAL curriculum spec in
- * lib/curriculum.ts (9 modules, each topic a lesson). Every lesson ships with
+ * lib/curriculum.ts (10 modules, each topic a lesson). Every lesson ships with
  * empty placeholder blocks and PDF file slots so an admin can drop in real
  * media and documents later. Edit lib/curriculum.ts to change the structure.
  */

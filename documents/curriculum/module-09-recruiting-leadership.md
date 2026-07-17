@@ -1,4 +1,4 @@
-# Module 8: Recruiting & Leadership
+# Module 9: Recruiting & Leadership
 
 Grow beyond yourself: when to recruit, how to talk to prospects, and building a
 team that doesn't depend on you.

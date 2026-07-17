@@ -1,4 +1,4 @@
-# Module 6: Sales
+# Module 7: Sales
 
 The heaviest module: mindset, scripts, rapport, running the appointment,
 objections, rebuttals, closing, and reviewing your recordings. Eight numbered

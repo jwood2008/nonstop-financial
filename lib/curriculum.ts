@@ -192,6 +192,42 @@ export const CURRICULUM: CurriculumModule[] = [
   },
   {
     id: 6,
+    title: "Leads / Lead Types",
+    summary:
+      "Know every lead type you'll work — IUL, Mortgage Protection, Final Expense, Veterans, and General Life — and how to approach each one.",
+    lessons: [
+      {
+        key: "iul-leads",
+        title: "IUL leads",
+        blurb:
+          "Indexed Universal Life prospects — the tax-advantaged retirement and cash-accumulation story.",
+      },
+      {
+        key: "mp-leads",
+        title: "MP (Mortgage Protection) leads",
+        blurb:
+          "Homeowners protecting their mortgage — how these leads think and what they need.",
+      },
+      {
+        key: "fex-leads",
+        title: "FEX (Final Expense) leads",
+        blurb: "Final-expense prospects covering burial and end-of-life costs.",
+      },
+      {
+        key: "vet-leads",
+        title: "VET leads",
+        blurb:
+          "Veteran and military households — their specific needs and how to serve them.",
+      },
+      {
+        key: "gen-life-leads",
+        title: "Gen Life leads",
+        blurb: "General life-insurance prospects — the broad top-of-funnel lead type.",
+      },
+    ],
+  },
+  {
+    id: 7,
     title: "Sales",
     summary:
       "The heaviest module: mindset, scripts, rapport, running the appointment, objections, rebuttals, closing, and reviewing your recordings.",
@@ -244,7 +280,7 @@ export const CURRICULUM: CurriculumModule[] = [
     ],
   },
   {
-    id: 7,
+    id: 8,
     title: "Systems & Daily Operations",
     summary:
       "Run your business on systems: lead distribution, tracking your numbers, and the CRM and tools you'll use daily.",
@@ -268,7 +304,7 @@ export const CURRICULUM: CurriculumModule[] = [
     ],
   },
   {
-    id: 8,
+    id: 9,
     title: "Recruiting & Leadership",
     summary:
       "Grow beyond yourself: when to recruit, how to talk to prospects, and building a team that doesn't depend on you.",
@@ -297,7 +333,7 @@ export const CURRICULUM: CurriculumModule[] = [
     ],
   },
   {
-    id: 9,
+    id: 10,
     title: "Scale Your Business",
     summary:
       "Take it to the next level: scaling production, a repeatable weekly review, long-term vision, and managing debt.",

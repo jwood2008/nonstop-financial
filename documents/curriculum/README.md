@@ -19,10 +19,11 @@ and PDF slots update automatically.
 3. [Licensing](module-03-licensing.md) *(if not licensed)*
 4. [Contracting & Appointments](module-04-contracting-appointments.md)
 5. [Product Knowledge](module-05-product-knowledge.md)
-6. [Sales](module-06-sales.md) — *heaviest module, 8 sub-lessons*
-7. [Systems & Daily Operations](module-07-systems-operations.md)
-8. [Recruiting & Leadership](module-08-recruiting-leadership.md)
-9. [Scale Your Business](module-09-scale-business.md)
+6. [Leads / Lead Types](module-06-lead-types.md)
+7. [Sales](module-07-sales.md) — *heaviest module, 8 sub-lessons*
+8. [Systems & Daily Operations](module-08-systems-operations.md)
+9. [Recruiting & Leadership](module-09-recruiting-leadership.md)
+10. [Scale Your Business](module-10-scale-business.md)
 
 ## How content gets added
 
@@ -38,7 +39,7 @@ they're the human-readable reference. The app reads from `lib/curriculum.ts`.
 
 ## Platform notes (for James)
 
-- **Module 6 (Sales)** is the heaviest module — it has its own sub-module
+- **Module 7 (Sales)** is the heaviest module — it has its own sub-module
   navigation (8 numbered lessons, 6.1–6.8).
 - Every module/lesson has a progress checkbox wired to the top progress bar on
   `/learn`.

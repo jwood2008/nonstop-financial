@@ -1,4 +1,4 @@
-# Module 9: Scale Your Business
+# Module 10: Scale Your Business
 
 Take it to the next level: scaling production, a repeatable weekly review,
 long-term vision, and managing debt.
