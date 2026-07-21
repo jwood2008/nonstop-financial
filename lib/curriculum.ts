@@ -359,6 +359,26 @@ export const CURRICULUM: CurriculumModule[] = [
         title: "Outstanding debt",
         blurb: "Managing and clearing outstanding debt as you scale.",
       },
+      {
+        key: "chargebacks",
+        title: "Chargebacks",
+        blurb: "Why chargebacks happen and how to protect your production against them.",
+      },
+      {
+        key: "reinvesting",
+        title: "Reinvesting back into your business",
+        blurb: "Putting profit back to work so growth compounds.",
+      },
+      {
+        key: "personal-brand",
+        title: "Building your personal brand",
+        blurb: "Standing out and attracting clients and recruits with a brand of your own.",
+      },
+      {
+        key: "closing-thoughts",
+        title: "Closing thoughts",
+        blurb: "A final word on staying the course and building something that lasts.",
+      },
     ],
   },
 ];

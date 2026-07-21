@@ -1,4 +1,4 @@
-import type { Course, Spotlight } from "./types";
+import type { Course, Lesson, Spotlight } from "./types";
 import { buildCourse } from "./curriculum";
 
 /** Default dashboard Spotlight cards — admins edit these in place on the
@@ -50,11 +50,27 @@ export const SEED_COURSE: Course = buildCourse();
  *  the sequential main course. Admins edit/add tracks in place; lesson ids
  *  are 'lt-' prefixed. Seeded from the team's lead list (IUL, MP, VETS,
  *  FEX, Gen Life) — add more as new lead types come online. */
+/** A blank In-Depth lesson: one empty video block + one intro text block, so an
+ *  admin can drop in the YouTube link and copy later. `blurb` seeds the intro. */
+function inDepthLesson(id: string, title: string, blurb: string): Lesson {
+  return {
+    id,
+    title,
+    duration: "TBD",
+    blocks: [
+      { id: `${id}-video`, type: "video", src: "", caption: title },
+      { id: `${id}-text`, type: "text", src: "", caption: blurb },
+    ],
+    files: [],
+    transcript: "",
+  };
+}
+
 export const DEFAULT_LEAD_TRACKS: Course = {
   // Bump this id whenever the default track set changes — the store treats a
   // saved copy with a different id as stale and replaces it, so everyone lands
   // on the current set (IUL + Annuities) without a manual reset.
-  id: "lead-tracks-v2",
+  id: "lead-tracks-v3",
   title: "In Depth — Lead Types",
   modules: [
     {
@@ -69,7 +85,15 @@ export const DEFAULT_LEAD_TRACKS: Course = {
       title: "Annuities",
       description:
         "Annuities — guaranteed-income and accumulation strategies. Match the product to the client's retirement need.",
-      lessons: [],
+      lessons: [
+        inDepthLesson("lt-ann-fia", "FIA — Fixed Indexed Annuities", "What an FIA is and where it fits in a client's plan."),
+        inDepthLesson("lt-ann-index-strategies", "Index strategies explained", "How the index crediting strategies work."),
+        inDepthLesson("lt-ann-caps-spreads", "Caps, participation rates & spreads", "The levers that shape how interest is credited."),
+        inDepthLesson("lt-ann-suitability", "Suitability fundamentals", "Making sure the annuity is right for the client."),
+        inDepthLesson("lt-ann-iul-transition", "Transitioning from IUL to annuity", "Qualifying suitability and moving the conversation inside the appointment."),
+        inDepthLesson("lt-ann-case-design", "Case design", "Building the case around the client's retirement need."),
+        inDepthLesson("lt-ann-closing", "Closing the annuity sale", "Bringing the annuity appointment to a confident close."),
+      ],
     },
   ],
 };
