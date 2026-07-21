@@ -199,6 +199,12 @@ function Learn() {
     return lessons.findIndex((l) => l.id === id) > firstIncompleteIdx;
   };
 
+  // Overall progress must count only completed lessons that still exist in the
+  // current course — `completed` is a union of local + remote ids and can hold
+  // stale ones (renumbered modules, deleted lessons), which would inflate the
+  // count. Intersect with the live lesson list, same as the per-module rings.
+  const completedCount = lessons.filter((l) => completed.has(l.id)).length;
+
   // course → agent-plan tracker shape (used in the sidebar when not editing)
   const planTasks = course.modules.map((m) => {
     const doneCount = m.lessons.filter((l) => completed.has(l.id)).length;
@@ -290,13 +296,13 @@ function Learn() {
                 </div>
               </div>
               <p className="mt-1 text-xs text-muted-2">
-                {completed.size}/{lessons.length} lessons complete
+                {completedCount}/{lessons.length} lessons complete
               </p>
               <div className="mt-2 h-1.5 overflow-hidden bg-surface-3">
                 <div
                   className="h-full bg-nonstop"
                   style={{
-                    width: `${(completed.size / lessons.length) * 100}%`,
+                    width: `${lessons.length ? (completedCount / lessons.length) * 100 : 0}%`,
                   }}
                 />
               </div>

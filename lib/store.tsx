@@ -558,19 +558,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Supabase: resolve the session before marking ready so authenticated
     // users aren't bounced to the landing page on a hard refresh.
     let unsub: { unsubscribe: () => void } | undefined;
-    supabase.auth.getSession().then(({ data, error }) => {
-      // A stored session whose refresh token the server no longer knows
-      // (db reset, token rotated) — purge it so it doesn't error every load.
-      if (error) void supabase!.auth.signOut();
-      const user = data.session?.user;
-      if (user) {
-        setEmail(user.email ?? null);
-        setUserId(user.id);
-        void loadProfile(user.id);
-        void loadRemote(user.id);
-      }
-      setReady(true);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        // A stored session whose refresh token the server no longer knows
+        // (db reset, token rotated) — purge it so it doesn't error every load.
+        if (error) void supabase!.auth.signOut();
+        const user = data.session?.user;
+        if (user) {
+          setEmail(user.email ?? null);
+          setUserId(user.id);
+          void loadProfile(user.id);
+          void loadRemote(user.id);
+        }
+        setReady(true);
+      })
+      .catch(() => {
+        // getSession can reject outright when the stored refresh token is
+        // invalid ("Refresh Token Not Found"). Purge it and still mark ready
+        // so the app doesn't hang on a stale session.
+        void supabase!.auth.signOut();
+        setReady(true);
+      });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       // A password-reset link establishes a recovery session — send the user to
       // the reset page wherever Supabase happens to land them.

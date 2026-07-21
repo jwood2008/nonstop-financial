@@ -18,6 +18,9 @@ const MONTHLY = process.env.NEXT_PUBLIC_MONTHLY_LABEL || "$75";
 const INK = "#0d0e11";
 const PAPER = "#f5f4f1";
 
+// First-visit intro overlay is locked off for now. Set to true to re-enable it.
+const SHOW_INTRO = false;
+
 /**
  * Mentor photos that crossfade behind the hero. Drop more shots of Jay (and
  * other mentors) into `public/hero/` and add their paths here — they cycle
@@ -75,7 +78,9 @@ export default function Landing() {
     /* on-media: the landing page is ink-dark in BOTH themes, so its white
        text must not be flipped dark by the light-mode overrides */
     <div className="on-media min-h-screen" style={{ background: INK }}>
-      <IntroOverlay />
+      {/* First-visit intro (white "Obsession → … → Family" morph) locked off for
+          now — flip SHOW_INTRO to true to bring it back. Code stays intact. */}
+      {SHOW_INTRO && <IntroOverlay />}
 
       {/* top bar (over the dark hero) */}
       <header>
