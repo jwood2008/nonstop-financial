@@ -8,7 +8,6 @@ import { useStore, allLessons } from "@/lib/store";
 import { track } from "@/lib/supabase";
 import { ContentBlockView } from "@/components/ContentBlockView";
 import { FilesTab } from "@/components/FilesTab";
-import { AICoachTab } from "@/components/AICoachTab";
 import type { BlockType } from "@/lib/types";
 import {
   CheckCircle2,
@@ -21,8 +20,6 @@ import {
   Type,
   FileText,
   NotebookPen,
-  AlignLeft,
-  Sparkles,
   RotateCcw,
   ChevronDown,
   Trash2,
@@ -30,21 +27,15 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Maximize2,
-  AlertTriangle,
-  Check,
   ListChecks,
   Lock,
 } from "lucide-react";
-import { lessonCoachState } from "@/lib/coach";
 import { isTrackableVideo } from "@/lib/video";
-import { TranscriptFetchButton } from "@/components/TranscriptFetchButton";
 import Plan from "@/components/ui/agent-plan";
 
 const TABS = [
   { id: "files", label: "Files", icon: FileText },
   { id: "notes", label: "Notes", icon: NotebookPen },
-  { id: "transcript", label: "Transcript", icon: AlignLeft },
-  { id: "coach", label: "AI Coach", icon: Sparkles },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -662,10 +653,6 @@ function Learn() {
           <div className="p-5">
             {tab === "files" && <FilesTab lesson={active} isAdmin={isAdmin} />}
             {tab === "notes" && <NotesTab lessonId={active.id} />}
-            {tab === "transcript" && (
-              <TranscriptTab lessonId={active.id} editing={editing} />
-            )}
-            {tab === "coach" && <AICoachTab lesson={active} />}
           </div>
         </div>
       </section>
@@ -704,66 +691,3 @@ function NotesTab({ lessonId }: { lessonId: string }) {
   );
 }
 
-/* ---------- Transcript (admin-editable) ---------- */
-function TranscriptTab({ lessonId, editing }: { lessonId: string; editing: boolean }) {
-  const { course, updateTranscript } = useStore();
-  const lesson = allLessons(course).find((l) => l.id === lessonId);
-  if (!lesson) return null;
-
-  const vid = lessonCoachState(lesson);
-  const stale = vid.hasRealVideo && !vid.transcriptMatches;
-
-  return (
-    <div className="space-y-3">
-      {/* match status + one-click fetch (admins, any time) */}
-      {vid.hasRealVideo && (
-        <div
-          className={`border px-3 py-2 text-xs ${
-            stale
-              ? "border-amber-500/40 bg-amber-500/5 text-amber-300"
-              : "border-green-500/30 bg-green-500/10 text-green-300"
-          }`}
-        >
-          <div className="flex items-start gap-1.5">
-            {stale ? (
-              <>
-                <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />
-                <span>
-                  This transcript doesn&apos;t match the current video — the AI
-                  Coach won&apos;t use it until it does.
-                </span>
-              </>
-            ) : (
-              <>
-                <Check className="mt-px h-3.5 w-3.5 shrink-0" />
-                <span>Transcript matches the current video.</span>
-              </>
-            )}
-          </div>
-          <TranscriptFetchButton lessonId={lessonId} className="mt-2" />
-        </div>
-      )}
-
-      {editing ? (
-        <textarea
-          value={lesson.transcript}
-          onChange={(e) => updateTranscript(lessonId, e.target.value)}
-          placeholder="Paste the transcript of THIS video (or use Transcribe with Whisper). The AI Coach analyzes this text to know the video's contents."
-          className="min-h-48 w-full resize-y border border-line-2 bg-surface-2 p-4 text-sm leading-relaxed text-zinc-200 outline-none focus:border-nonstop"
-        />
-      ) : (
-        <>
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-200">
-            {lesson.transcript || (
-              <span className="text-muted-2">No transcript yet.</span>
-            )}
-          </p>
-          <p className="text-xs text-muted-2">
-            The AI Coach reads this transcript to understand the video. In
-            production it&apos;s generated from the video automatically (Whisper/Mux).
-          </p>
-        </>
-      )}
-    </div>
-  );
-}
