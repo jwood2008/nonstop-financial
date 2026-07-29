@@ -2,7 +2,7 @@
 
 Project: `gewbnsgydbcvpxbqtrjq` · SQL Editor: https://supabase.com/dashboard/project/gewbnsgydbcvpxbqtrjq/sql/new
 
-These six numbered files are the **complete, ordered, idempotent** schema for
+These numbered files are the **complete, ordered, idempotent** schema for
 NonStop Financial. Re-running any of them is always safe. They replace the old
 `supabase/*.sql` individual files and the `sql scripts/*.md` tabs (removed —
 they had drifted out of sync).
@@ -18,11 +18,14 @@ Open the target project's SQL Editor and run each file top to bottom:
 | 3 | `03_teams_roles.sql` | `manager_id` + `list_managers()` · scoped analytics (`analytics_scope`) · single-role pipeline (Lead→Agent→Manager→Admin) · content editing made admin-only |
 | 4 | `04_weekly_training.sql` | `team_training` (weekly program per manager) · `team_messages` (team chat) · analytics gain `p_source` ('all' / 'course' / 'weekly') |
 | 5 | `05_my_team.sql` | manager drill-down into one team member · `my_team()` |
-| 6 | `06_free_emails.sql` | `free_emails` allowlist (skip payment at signup) · **owns the final `handle_new_user`** — run last |
+| 6 | `06_free_emails.sql` | `free_emails` allowlist (skip payment at signup) · **owns the final `handle_new_user`** |
+| 7 | `07_security_paywall.sql` | server-side paywall (`app_settings.paywall_enabled`) · closes the org-wide analytics leak (no team → self only) |
+| 8 | `08_manager_switch.sql` | **owns the final `analytics_scope`** — 07's tightening + 05's manager drill-down, merged — run last |
 
 Order matters: each builds on the previous. `handle_new_user` is redefined as it
 gains columns (birthdate → manager_id → admin/free-email role logic); the version
-in `06` is the one that ends up live.
+in `06` is the one that ends up live. `analytics_scope` is likewise redefined in
+03 → 05 → 07 → 08; `08` is the one that ends up live.
 
 After running #3: promote at least one **Manager** in **Analytics → Users**
 (the signup manager dropdown needs one).
@@ -45,4 +48,4 @@ After running #3: promote at least one **Manager** in **Analytics → Users**
 - Bootstrap owners are seeded in `01_core.sql` (`james.l.wood@outlook.com`,
   `jameslwood589@gmail.com`). Keep in sync with `lib/admins.ts`.
 - These files are also applied to the live DB as tracked migrations
-  (`supabase migration list` / the MCP `list_migrations`), named `01_core` … `06_free_emails`.
+  (`supabase migration list` / the MCP `list_migrations`), named `01_core` … `08_manager_switch`.

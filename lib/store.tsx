@@ -713,12 +713,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [canBeAdmin]);
 
   // Which team's weekly training to show: managers → their own; agents →
-  // their manager's. Admins pick one in the Weekly tab (setTeamId).
+  // their manager's. Only admins pick a team by hand (Weekly tab, setTeamId),
+  // so their choice is left alone; for everyone else this tracks manager_id
+  // live — switching managers in Settings moves the weekly program and the
+  // team chat over without a reload, and clearing it drops you off the team.
   useEffect(() => {
-    if (teamId) return;
-    if (isManager && userId) setTeamIdState(userId);
-    else if (profile.managerId) setTeamIdState(profile.managerId);
-  }, [teamId, isManager, userId, profile.managerId]);
+    if (isManager && userId) {
+      setTeamIdState(userId);
+      return;
+    }
+    if (canBeAdmin) return;
+    setTeamIdState(profile.managerId || null);
+  }, [isManager, canBeAdmin, userId, profile.managerId]);
 
   // load the team's weekly program
   useEffect(() => {
