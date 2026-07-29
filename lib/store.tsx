@@ -57,6 +57,10 @@ const MENTORS_DOC_ID = "mentors";
 const DEFAULT_MENTORS: Mentor[] = [];
 
 const LS_LEAD_VENDORS = "nf.leadVendors"; // LeadVendor[]
+// Which user id the cached profile/progress above belongs to. localStorage is
+// per-browser, not per-account — without this, a second account signing in on
+// the same computer inherits the first one's lessons, notes and photo.
+const LS_CACHE_OWNER = "nf.cacheOwner";
 
 /** course_content row id that holds the "Buy Leads" vendor links. */
 const LEAD_VENDORS_DOC_ID = "lead-vendors";
@@ -354,6 +358,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const progressLoadedRef = useRef(false);
   const progressSyncedRef = useRef<string | null>(null);
 
+  // Wipe the cached profile + progress this browser is holding. Used on logout
+  // and whenever the cache turns out to belong to a different account.
+  const clearCachedUserData = () => {
+    setCompleted(new Set());
+    setVideoProgressState({});
+    setQuizResults({});
+    setNotes({});
+    setProfile(DEFAULT_PROFILE);
+    progressSyncedRef.current = null;
+    // the two sync effects must stay parked until the new user's rows land,
+    // or they'd upsert this empty state over what the DB already holds
+    progressLoadedRef.current = false;
+    profileLoadedRef.current = false;
+    if (typeof window === "undefined") return;
+    for (const k of [LS_DONE, LS_VIDEO, LS_QUIZ, LS_NOTES, LS_PROFILE, LS_CACHE_OWNER]) {
+      window.localStorage.removeItem(k);
+    }
+  };
+
+  // Claim this browser's cache for `uid`. If it belonged to someone else, it is
+  // dropped first — progress is merged into whatever is already in state, so a
+  // stale cache would otherwise be uploaded to the new user's row as if they
+  // had done those lessons themselves.
+  const adoptCacheFor = (uid: string) => {
+    if (typeof window === "undefined") return;
+    if (window.localStorage.getItem(LS_CACHE_OWNER) !== uid) clearCachedUserData();
+    window.localStorage.setItem(LS_CACHE_OWNER, uid);
+  };
+
   // Pull the published curriculum and this user's progress from Supabase.
   // Course: the DB copy is the source of truth (admin edits propagate to
   // everyone). Progress: merged with local state — completed is a union,
@@ -568,6 +601,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         if (user) {
           setEmail(user.email ?? null);
           setUserId(user.id);
+          adoptCacheFor(user.id);
           void loadProfile(user.id);
           void loadRemote(user.id);
         }
@@ -595,6 +629,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (user) {
         setEmail(user.email ?? null);
         setUserId(user.id);
+        adoptCacheFor(user.id);
         void loadProfile(user.id);
         void loadRemote(user.id);
       } else {
@@ -1012,8 +1047,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     mentorsSyncedRef.current = null;
     leadVendorsSyncedRef.current = null;
     setEmail(null);
+    setUserId(null);
     window.localStorage.removeItem(LS_EMAIL);
-    setProfile(DEFAULT_PROFILE);
+    // don't leave this account's lessons/notes/photo behind for whoever logs
+    // in on this computer next
+    clearCachedUserData();
     setRole("user");
   };
 
