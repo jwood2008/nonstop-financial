@@ -1,15 +1,33 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { embedUrl, isEmbed, isYouTube, youtubeId, WATCH_THRESHOLD } from "@/lib/video";
+import dynamic from "next/dynamic";
+import {
+  embedUrl,
+  isEmbed,
+  isMux,
+  isYouTube,
+  muxPlaybackId,
+  youtubeId,
+  WATCH_THRESHOLD,
+} from "@/lib/video";
+
+// Mux plays through its web component (a real media element in OUR page), not
+// a cross-origin iframe — that's what makes seek-blocking possible. Loaded on
+// demand so lessons without Mux video don't pay for the bundle.
+const MuxPlayer = dynamic(() => import("@mux/mux-player-react"), { ssr: false });
 
 /**
  * Video player that measures genuine watch progress and reports the fraction
  * watched (0–1) via `onProgress`. Counts each second of the video only once it
- * has actually played, so scrubbing to the end earns no credit. HTML5 video
- * also blocks fast-forwarding past the furthest point watched.
+ * has actually played, so scrubbing to the end earns no credit, and seeking
+ * past the furthest point genuinely reached snaps back.
  *
- * Untrackable embeds (Vimeo, Mux) render as a plain iframe with no gating.
+ * Enforced identically for every role — Lead, Agent, Manager, Admin. The only
+ * unrestricted path is an admin previewing a block inside the editor.
+ *
+ * Third-party embeds we can't drive (e.g. a raw Vimeo link) render as a plain
+ * iframe and cannot be gated — `isUngatedEmbed` flags those for admins.
  */
 export function VideoPlayer({
   src,
@@ -20,14 +38,24 @@ export function VideoPlayer({
   src: string;
   initialProgress?: number;
   onProgress: (fraction: number) => void;
-  /** When false (lesson already complete), seeking is unrestricted. */
+  /** When false (this video already watched through), seeking is unrestricted. */
   enforce?: boolean;
 }) {
+  if (isMux(src)) {
+    return (
+      <MuxWatch
+        playbackId={muxPlaybackId(src)!}
+        initialProgress={initialProgress}
+        onProgress={onProgress}
+        enforce={enforce}
+      />
+    );
+  }
   if (isYouTube(src)) {
     return <YouTubeWatch videoId={youtubeId(src)!} onProgress={onProgress} enforce={enforce} />;
   }
   if (isEmbed(src)) {
-    // Vimeo / Mux / other — can't measure progress, render normally.
+    // Unknown third-party embed — no way to measure or restrict it.
     return (
       <div className="aspect-video">
         <iframe
@@ -49,6 +77,124 @@ export function VideoPlayer({
   );
 }
 
+/* ---------- shared gate for anything with the HTMLMediaElement API ---------- */
+
+type MediaLike = {
+  duration: number;
+  currentTime: number;
+  paused: boolean;
+  seeking: boolean;
+};
+
+/**
+ * The watch rules, in one place so <video> and <mux-player> can't drift apart:
+ * count only positions genuinely played, snap back on forward seeks, report the
+ * furthest point reached as the watched fraction.
+ */
+function useWatchGate({
+  initialProgress,
+  onProgress,
+  enforce,
+  resetKey,
+}: {
+  initialProgress: number;
+  onProgress: (f: number) => void;
+  enforce: boolean;
+  /** changing this (new src) starts a fresh measurement */
+  resetKey: string;
+}) {
+  const maxReached = useRef(0); // furthest position genuinely reached (sec)
+  const lastSent = useRef(0);
+  // keep the latest callback / flags in refs so progress updates never restart
+  // the player mid-lesson
+  const cb = useRef(onProgress);
+  cb.current = onProgress;
+  const initRef = useRef(initialProgress);
+  const enforceRef = useRef(enforce);
+  enforceRef.current = enforce;
+
+  useEffect(() => {
+    maxReached.current = 0;
+    lastSent.current = 0;
+  }, [resetKey]);
+
+  const report = (el: MediaLike) => {
+    const dur = el.duration || 0;
+    if (!dur) return;
+    // progress = how far through the video you've genuinely reached → tracks
+    // the scrubber, so the end reads ~100% (no dropped-second drift)
+    const f = Math.min(1, Math.max(0, maxReached.current / dur));
+    if (f >= WATCH_THRESHOLD || f >= lastSent.current + 0.01) {
+      lastSent.current = f;
+      cb.current(f);
+    }
+  };
+
+  return {
+    // let returning learners resume up to where they'd already watched
+    onMeta: (el: MediaLike) => {
+      if (initRef.current > 0 && el.duration) {
+        maxReached.current = Math.max(maxReached.current, initRef.current * el.duration);
+      }
+    },
+    onTime: (el: MediaLike) => {
+      if (!enforceRef.current) return; // already watched through — free seeking
+      if (!el.paused && !el.seeking && el.currentTime > maxReached.current) {
+        maxReached.current = el.currentTime;
+      }
+      report(el);
+    },
+    onEnded: (el: MediaLike) => {
+      if (!enforceRef.current) return;
+      maxReached.current = el.duration || maxReached.current;
+      report(el);
+    },
+    // Block fast-forwarding: snap back if they seek beyond what they've reached.
+    onSeeking: (el: MediaLike) => {
+      if (!enforceRef.current) return;
+      const allowed = maxReached.current + 1.5;
+      if (el.currentTime > allowed) el.currentTime = Math.max(0, allowed);
+    },
+  };
+}
+
+/* ---------- Mux: <mux-player> drives the same gate as a plain <video> ---------- */
+function MuxWatch({
+  playbackId,
+  initialProgress,
+  onProgress,
+  enforce,
+}: {
+  playbackId: string;
+  initialProgress: number;
+  onProgress: (f: number) => void;
+  enforce: boolean;
+}) {
+  const gate = useWatchGate({
+    initialProgress,
+    onProgress,
+    enforce,
+    resetKey: playbackId,
+  });
+  // events carry the element, so no ref forwarding through next/dynamic
+  const el = (e: { currentTarget?: unknown; target?: unknown }) =>
+    (e.currentTarget ?? e.target) as MediaLike;
+
+  return (
+    <div className="aspect-video w-full bg-black">
+      <MuxPlayer
+        playbackId={playbackId}
+        streamType="on-demand"
+        onLoadedMetadata={(e) => gate.onMeta(el(e))}
+        onTimeUpdate={(e) => gate.onTime(el(e))}
+        onEnded={(e) => gate.onEnded(el(e))}
+        onSeeking={(e) => gate.onSeeking(el(e))}
+        style={{ height: "100%", width: "100%", aspectRatio: "16 / 9" }}
+      />
+    </div>
+  );
+}
+
 /* ---------- HTML5 <video>: bucket-count watched seconds, block seek-ahead ---------- */
 function Html5Watch({
   src,
@@ -62,57 +208,18 @@ function Html5Watch({
   enforce: boolean;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
-  const maxReached = useRef(0); // furthest position genuinely reached (sec)
-  const lastSent = useRef(0);
-  // keep latest callback / initial value in refs so the effect runs once per
-  // src — progress updates must NOT re-run it (that would reset the player)
-  const cb = useRef(onProgress);
-  cb.current = onProgress;
-  const initRef = useRef(initialProgress);
-  const enforceRef = useRef(enforce);
-  enforceRef.current = enforce;
+  const gate = useWatchGate({ initialProgress, onProgress, enforce, resetKey: src });
+  const gateRef = useRef(gate);
+  gateRef.current = gate;
 
   useEffect(() => {
     const v = ref.current;
     if (!v) return;
 
-    const report = () => {
-      const dur = v.duration || 0;
-      if (!dur) return;
-      // progress = how far through the video you've genuinely reached → tracks
-      // the scrubber, so the end reads ~100% (no dropped-second drift)
-      const f = Math.min(1, Math.max(0, maxReached.current / dur));
-      if (f >= WATCH_THRESHOLD || f >= lastSent.current + 0.01) {
-        lastSent.current = f;
-        cb.current(f);
-      }
-    };
-
-    const onMeta = () => {
-      // let returning learners resume up to where they'd already watched
-      if (initRef.current > 0 && v.duration) {
-        maxReached.current = initRef.current * v.duration;
-      }
-    };
-    const onTime = () => {
-      if (!enforceRef.current) return; // lesson done — don't track or restrict
-      if (!v.paused && !v.seeking && v.currentTime > maxReached.current) {
-        maxReached.current = v.currentTime;
-      }
-      report();
-    };
-    const onEnded = () => {
-      if (!enforceRef.current) return;
-      maxReached.current = v.duration || maxReached.current;
-      report();
-    };
-    // Block fast-forwarding: snap back if they seek beyond what they've reached.
-    // Skipped once the lesson is complete, so re-watching is unrestricted.
-    const onSeeking = () => {
-      if (!enforceRef.current) return;
-      const allowed = maxReached.current + 1.5;
-      if (v.currentTime > allowed) v.currentTime = Math.max(0, allowed);
-    };
+    const onMeta = () => gateRef.current.onMeta(v);
+    const onTime = () => gateRef.current.onTime(v);
+    const onEnded = () => gateRef.current.onEnded(v);
+    const onSeeking = () => gateRef.current.onSeeking(v);
 
     v.addEventListener("loadedmetadata", onMeta);
     v.addEventListener("timeupdate", onTime);

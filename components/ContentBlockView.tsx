@@ -7,6 +7,7 @@ import type { ContentBlock, BlockType } from "@/lib/types";
 import { QuizEditor, QuizPlayer } from "@/components/QuizBlock";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { isUngatedEmbed, WATCH_THRESHOLD } from "@/lib/video";
 import {
   Play,
   ImageIcon,
@@ -91,10 +92,14 @@ function RenderBlock({ block, lessonId }: { block: ContentBlock; lessonId?: stri
 
 /* ---------- video with watch-tracking wired to the store ---------- */
 function VideoBlock({ block, lessonId }: { block: ContentBlock; lessonId?: string }) {
-  const { videoProgress, setVideoProgress, completed } = useStore();
-  // Enforce no-skipping only until the lesson is complete — after that the
-  // video plays like a normal one (free seeking, no tracking).
-  const enforce = lessonId ? !completed.has(lessonId) : false;
+  const { videoProgress, setVideoProgress } = useStore();
+  // No-skipping is enforced per VIDEO, off its own measured progress — never
+  // off the lesson's `completed` flag, which is a union of local + remote ids
+  // (renumbered curricula leave stale ones behind) and would hand out free
+  // seeking on videos that were never watched. Applies to every role; the only
+  // unrestricted path is an admin previewing a block in the editor (no lessonId).
+  const watchedThrough = (videoProgress[block.id] ?? 0) >= WATCH_THRESHOLD;
+  const enforce = lessonId ? !watchedThrough : false;
   return (
     <VideoPlayer
       src={block.src}
@@ -230,6 +235,16 @@ function EditableBlock({
           <RenderBlock block={block} />
         ) : null}
       </div>
+
+      {/* An embed we can't drive = a lesson anyone can skip. Say so, loudly. */}
+      {block.type === "video" && isUngatedEmbed(block.src) && (
+        <div className="mb-3 border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <b>This video can&apos;t be skip-protected.</b> It&apos;s a third-party embed, so
+          watch time can&apos;t be measured and the lesson completes without watching. Use a
+          Mux link (player.mux.com), a YouTube link, or a direct .mp4 (Dropbox links need{" "}
+          <code>&amp;raw=1</code>) to enforce watch-through.
+        </div>
+      )}
 
       {block.type !== "text" && block.type !== "quiz" && (
         <>
