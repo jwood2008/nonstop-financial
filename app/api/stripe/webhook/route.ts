@@ -123,7 +123,18 @@ export async function POST(req: NextRequest) {
             const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
             const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
             if (url && anon) {
-              const r = await fetch(`${url}/auth/v1/resend`, {
+              // There's no window.origin here, so the link's destination has to
+              // be stated explicitly — otherwise Supabase falls back to the
+              // project's Site URL, which sends paying customers to localhost.
+              const site =
+                process.env.NEXT_PUBLIC_SITE_URL ||
+                (process.env.VERCEL_PROJECT_PRODUCTION_URL
+                  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+                  : null);
+              const resendUrl = site
+                ? `${url}/auth/v1/resend?redirect_to=${encodeURIComponent(`${site}/auth/callback`)}`
+                : `${url}/auth/v1/resend`;
+              const r = await fetch(resendUrl, {
                 method: "POST",
                 headers: { apikey: anon, "Content-Type": "application/json" },
                 body: JSON.stringify({ type: "signup", email: userEmail }),
