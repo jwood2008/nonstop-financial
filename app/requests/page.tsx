@@ -101,11 +101,20 @@ function Requests() {
       await clearRequest(u);
     } else {
       // promote their position (Manager) — set-role also clears the request
-      await authedFetch("/api/admin/set-role", {
+      // and emails them that they were approved
+      const res = await authedFetch("/api/admin/set-role", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: u.id, role: u.requested_role }),
       });
+      const j = res ? await res.json().catch(() => ({})) : {};
+      if (res?.ok && (j as { emailed?: boolean }).emailed === false) {
+        // the promotion went through — say so, but don't let a silent email
+        // failure leave the admin thinking they've been told
+        setError(
+          `${u.name || u.email} is now ${u.requested_role}, but the approval email didn't send. Let them know directly.`
+        );
+      }
     }
     await load();
     setBusy(null);

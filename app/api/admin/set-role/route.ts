@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { isPositionRole } from "@/lib/roles";
+import { isPositionRole, POSITION_ROLES } from "@/lib/roles";
+import { sendPositionApprovedEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
   // hold a pipeline position. Remove their admin access first.
   const { data: target } = await supabaseAdmin
     .from("profiles")
-    .select("email")
+    .select("email, name, role")
     .eq("id", userId)
     .maybeSingle();
   if (target?.email) {
@@ -76,5 +77,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, role });
+  // Tell them they were approved. Only on a real step up the pipeline: denying
+  // a request re-sets someone's current role (a no-op), and nobody wants an
+  // email announcing they've been moved back down.
+  const rank = (r: string) => POSITION_ROLES.indexOf(r as (typeof POSITION_ROLES)[number]);
+  const promoted = rank(role) > rank(String(target?.role ?? "Lead"));
+  if (!promoted || !target?.email) {
+    return NextResponse.json({ ok: true, role, emailed: false });
+  }
+
+  const { sent, error: emailErr } = await sendPositionApprovedEmail({
+    to: target.email,
+    name: target.name ?? undefined,
+    role,
+    appUrl: req.headers.get("origin") ?? req.nextUrl.origin,
+  });
+  if (!sent) console.warn("[set-role] approval email failed:", emailErr);
+
+  // the promotion itself already succeeded — a failed email is a warning,
+  // not an error, but the admin should know it didn't go out
+  return NextResponse.json({ ok: true, role, emailed: sent, emailError: sent ? undefined : emailErr });
 }
