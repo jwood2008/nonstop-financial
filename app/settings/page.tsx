@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { useStore, ageFromBirthdate, isNonstopEmail, type AdminRow } from "@/lib/store";
+import { useStore, ageFromBirthdate, type AdminRow } from "@/lib/store";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { fileToDataUrl, MAX_UPLOAD_BYTES } from "@/lib/file";
 import { REQUESTABLE_ROLES, DEFAULT_ROLE } from "@/lib/roles";
@@ -221,7 +221,9 @@ function Settings() {
           <Field label="Email">
             <input value={email ?? ""} disabled className={`${inputCls} opacity-60`} />
           </Field>
-          {isNonstopEmail(email) && <ManagerField />}
+          {/* everyone but a Manager themselves reports to someone — agents who
+              signed up before their manager existed switch over here */}
+          {(profile.role || "").toLowerCase() !== "manager" && <ManagerField />}
         </div>
         <p className="mt-3 text-xs text-muted-2">Changes save automatically.</p>
       </Section>
@@ -604,26 +606,32 @@ function Section({
   );
 }
 
-/* NonStop agents pick the Manager they report to — this drives whose
-   analytics their manager sees, so it's editable here as well as at signup. */
+/* Agents pick the Manager they report to — this drives whose analytics their
+   manager sees, so it's editable here as well as at signup. Opening the list
+   re-pulls it, so a manager who signed up (and was promoted) after the agent
+   did shows up without a page reload. */
 function ManagerField() {
   const { profile, updateProfile } = useStore();
   const [managers, setManagers] = useState<{ id: string; name: string }[]>([]);
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!isSupabaseConfigured || !supabase) return;
     supabase.rpc("list_managers").then(({ data, error }) => {
       if (!error && data) setManagers(data as { id: string; name: string }[]);
     });
   }, []);
+  useEffect(load, [load]);
   return (
     <Field label="Your manager">
       <select
         value={profile.managerId || ""}
         onChange={(e) => updateProfile({ managerId: e.target.value })}
+        onFocus={load}
         className={inputCls}
       >
         <option value="">
-          {managers.length ? "Select your manager…" : "No managers listed yet"}
+          {managers.length
+            ? "My manager isn't listed yet"
+            : "No managers listed yet"}
         </option>
         {managers.map((m) => (
           <option key={m.id} value={m.id}>
@@ -631,6 +639,10 @@ function ManagerField() {
           </option>
         ))}
       </select>
+      <p className="mt-1 text-[11px] text-muted-2">
+        Manager signed up after you did? Pick them here — it switches you to
+        their team right away.
+      </p>
     </Field>
   );
 }

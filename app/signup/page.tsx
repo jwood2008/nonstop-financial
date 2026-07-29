@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore, ageBracket, ageFromBirthdate, isNonstopEmail } from "@/lib/store";
@@ -50,13 +50,18 @@ export default function SignupPage() {
   }, [email, nonstop]);
 
   // Agents pick who they report to — managers see their team's analytics,
-  // so this matters. The list loads once the email qualifies as free/team.
-  useEffect(() => {
-    if (!freeAccess || managers.length > 0 || !isSupabaseConfigured || !supabase) return;
+  // so this matters. The list loads once the email qualifies as free/team,
+  // and re-pulls whenever the dropdown is opened.
+  const loadManagers = useCallback(() => {
+    if (!isSupabaseConfigured || !supabase) return;
     supabase.rpc("list_managers").then(({ data, error }) => {
       if (!error && data) setManagers(data as { id: string; name: string }[]);
     });
-  }, [freeAccess, managers.length]);
+  }, []);
+  useEffect(() => {
+    if (!freeAccess || managers.length > 0) return;
+    loadManagers();
+  }, [freeAccess, managers.length, loadManagers]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false); // confirmation email sent screen
@@ -328,10 +333,13 @@ export default function SignupPage() {
             <select
               value={managerId}
               onChange={(e) => setManagerId(e.target.value)}
+              onFocus={loadManagers}
               className={authInputCls}
             >
               <option value="">
-                {managers.length ? "Select your manager…" : "No managers listed yet"}
+                {managers.length
+                  ? "My manager isn't listed yet"
+                  : "No managers listed yet"}
               </option>
               {managers.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -339,6 +347,10 @@ export default function SignupPage() {
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-[11px] text-muted-2">
+              Not listed? Leave it as is — you can pick them in Settings once
+              they&apos;ve signed up.
+            </p>
           </AuthField>
         )}
 
