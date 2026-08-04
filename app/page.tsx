@@ -168,9 +168,9 @@ export default function Landing() {
             <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl shadow-[0_35px_70px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_45px_85px_-20px_rgba(0,0,0,0.5)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/hero/jay-1.png"
+                src="/hero/jay-founder.jpg"
                 alt="Jay — NonStop Financial"
-                className="absolute inset-0 h-full w-full object-cover object-[center_25%]"
+                className="absolute inset-0 h-full w-full object-cover object-[center_55%]"
               />
             </div>
             <div className="mt-4">
