@@ -14,3 +14,6 @@ next-env.d.ts
 
 # local reference docs (not app code)
 /*.pdf
+
+# large local media — never commit (1.5GB)
+/Videos

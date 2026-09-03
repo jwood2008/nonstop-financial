@@ -22,22 +22,60 @@ const PAPER = "#f5f4f1";
 const SHOW_INTRO = false;
 
 /**
- * Mentor photos that crossfade behind the hero. Drop more shots of Jay (and
- * other mentors) into `public/hero/` and add their paths here — they cycle
- * automatically.
- *
- *   const HERO_PHOTOS = ["/hero/jay-1.jpg", "/hero/jay-2.jpg"];
+ * Photos that crossfade behind the hero. Mix of Jay and the team — drop more
+ * into `public/hero/` and add them here. `pos` is CSS object-position so heads
+ * stay in frame (the hero crops landscape shots hard).
  */
-const HERO_PHOTOS: string[] = [
-  "/hero/jay-1.png",
-  "/hero/jay-2.png",
-  "/hero/jay-3.png",
-  "/hero/jay-4.png",
-  "/hero/jay-5.png",
-  "/hero/jay-6.png",
-  "/hero/jay-7.png",
-  "/hero/jay-8.jpg",
-  "/hero/jay-9.jpg",
+const HERO_PHOTOS: { src: string; pos: string }[] = [
+  { src: "/hero/jay-1.png", pos: "center 25%" },
+  { src: "/hero/team-miami.jpg", pos: "center 32%" },
+  { src: "/hero/jay-4.png", pos: "center 22%" },
+  { src: "/hero/team-banner.jpg", pos: "center 45%" },
+  { src: "/hero/jay-2.png", pos: "center 22%" },
+  { src: "/hero/team-huddle.jpg", pos: "center 48%" },
+  { src: "/hero/jay-8.jpg", pos: "center 35%" },
+  { src: "/hero/team-meeting.jpg", pos: "center 32%" },
+  { src: "/hero/jay-9.jpg", pos: "center 42%" },
+];
+
+/** Editorial mosaic on the landing — the rest of the room, not just Jay. */
+const TEAM_PHOTOS: { src: string; pos: string; alt: string; span: string }[] = [
+  {
+    src: "/hero/team-miami.jpg",
+    pos: "center 38%",
+    alt: "The NonStop team together outdoors",
+    span: "col-span-12 min-h-[220px] sm:min-h-[280px] lg:col-span-8 lg:row-span-2 lg:min-h-[440px]",
+  },
+  {
+    src: "/hero/team-banner.jpg",
+    pos: "center 48%",
+    alt: "Producers in front of the NonStop Financial banner",
+    span: "col-span-6 min-h-[160px] sm:min-h-[200px] lg:col-span-4 lg:min-h-[214px]",
+  },
+  {
+    src: "/hero/team-huddle.jpg",
+    pos: "center 50%",
+    alt: "The team in a training huddle",
+    span: "col-span-6 min-h-[160px] sm:min-h-[200px] lg:col-span-4 lg:min-h-[214px]",
+  },
+  {
+    src: "/hero/team-meeting.jpg",
+    pos: "center 42%",
+    alt: "Mentorship around the conference table",
+    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-4 lg:min-h-[280px]",
+  },
+  {
+    src: "/hero/team-table.jpg",
+    pos: "center 32%",
+    alt: "The team in session",
+    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-4 lg:min-h-[280px]",
+  },
+  {
+    src: "/hero/team-circle.jpg",
+    pos: "center 38%",
+    alt: "A huddle from the floor",
+    span: "col-span-12 min-h-[180px] sm:min-h-[220px] lg:col-span-4 lg:min-h-[280px]",
+  },
 ];
 
 const PILLARS = [
@@ -94,8 +132,14 @@ export default function Landing() {
               Mentorship
             </a>
             <a
-              href="#academy"
+              href="#team"
               className="hidden px-2 py-1.5 text-sm font-medium text-white/55 transition hover:text-white sm:inline"
+            >
+              The team
+            </a>
+            <a
+              href="#academy"
+              className="hidden px-2 py-1.5 text-sm font-medium text-white/55 transition hover:text-white lg:inline"
             >
               Academy
             </a>
@@ -206,9 +250,42 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* the family — INK band, team photos */}
+      <section id="team" style={{ background: INK }}>
+        <div className="mx-auto max-w-6xl px-6 pt-24 pb-8 lg:pt-32">
+          <Eyebrow>The family</Eyebrow>
+          <p className="mt-6 max-w-2xl font-display text-3xl font-bold leading-[1.05] text-white sm:text-5xl">
+            This is who you walk in with.
+          </p>
+          <p className="mt-5 max-w-lg text-[15px] leading-relaxed text-white/55">
+            Mentors, producers, and the next ones in line. Jay built NonStop so
+            his people could access a world of success — this is the room that
+            showed up.
+          </p>
+        </div>
+        <div className="mx-auto max-w-6xl px-6 pb-8">
+          <div className="grid grid-cols-12 gap-2.5 sm:gap-3">
+            {TEAM_PHOTOS.map((photo) => (
+              <figure
+                key={photo.src}
+                className={`group relative overflow-hidden rounded-3xl ring-1 ring-white/10 ${photo.span}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.src}
+                  alt={photo.alt}
+                  style={{ objectPosition: photo.pos }}
+                  className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04] motion-reduce:transition-none motion-reduce:group-hover:scale-100"
+                />
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* how NonStop works — INK band */}
       <section style={{ background: INK }}>
-        <div className="mx-auto max-w-6xl px-6 py-24">
+        <div className="mx-auto max-w-6xl px-6 pb-24 pt-16">
           <Eyebrow>How it works</Eyebrow>
           <div className="mt-10 grid gap-5 sm:grid-cols-3">
             {PILLARS.map(([title, desc]) => (
@@ -409,7 +486,7 @@ function Eyebrow({ children }: { children: ReactNode }) {
   );
 }
 
-/* ---------- crossfading mentor photos as the hero background ---------- */
+/* ---------- crossfading mentor + team photos as the hero background ---------- */
 function HeroSlideshow() {
   const [i, setI] = useState(0);
   const slides = HERO_PHOTOS;
@@ -423,13 +500,14 @@ function HeroSlideshow() {
   return (
     <div className="absolute inset-0 -z-20" style={{ background: INK }}>
       <div className="absolute inset-0 lg:left-auto lg:w-[62%]">
-        {slides.map((src, idx) => (
+        {slides.map((slide, idx) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            key={src}
-            src={src}
-            alt="NonStop mentor"
-            className={`absolute inset-0 h-full w-full object-cover object-[center_25%] transition-opacity duration-[1200ms] ease-in-out ${
+            key={slide.src}
+            src={slide.src}
+            alt="NonStop team"
+            style={{ objectPosition: slide.pos }}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-in-out ${
               idx === i ? "opacity-100" : "opacity-0"
             }`}
           />

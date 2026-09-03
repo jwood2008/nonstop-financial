@@ -33,11 +33,12 @@ const MODULE_IMAGES = [
 // `pos` is the CSS object-position: the hero band is wide and short, so
 // portrait shots need a top bias or heads get cropped out of frame.
 const HERO_IMAGES: { src: string; pos: string }[] = [
+  { src: "/hero/team-miami.jpg", pos: "center 32%" }, // outdoor group — people upper-middle
+  { src: "/hero/team-banner.jpg", pos: "center 45%" }, // five in front of the NonStop banner
   { src: "/hero/jay-8.jpg", pos: "center 35%" }, // group photo — heads at ~40% of frame
+  { src: "/hero/team-huddle.jpg", pos: "center 48%" }, // office huddle
+  { src: "/hero/team-circle.jpg", pos: "center 38%" }, // packed training huddle
   { src: "/hero/jay-9.jpg", pos: "center 42%" }, // aerial — crowd is mid-frame
-  { src: "/hero/jay-4.png", pos: "center 20%" }, // podcast (landscape) — face upper third
-  { src: "/hero/jay-7.png", pos: "center 22%" }, // podcast (landscape) — face upper third
-  { src: "/hero/jay-6.png", pos: "center 38%" }, // portrait — Jay's face at ~39% of frame
   { src: "/hero/jay-1.png", pos: "center 35%" }, // portrait — Jay's face at ~36% of frame
 ];
 
