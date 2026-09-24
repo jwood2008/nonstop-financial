@@ -22,20 +22,17 @@ const PAPER = "#f5f4f1";
 const SHOW_INTRO = false;
 
 /**
- * Photos that crossfade behind the hero. Mix of Jay and the team — drop more
- * into `public/hero/` and add them here. `pos` is CSS object-position so heads
+ * Photos that crossfade behind the hero. Team-first — drop more into
+ * `public/hero/` and add them here. `pos` is CSS object-position so heads
  * stay in frame (the hero crops landscape shots hard).
  */
 const HERO_PHOTOS: { src: string; pos: string }[] = [
-  { src: "/hero/jay-1.png", pos: "center 25%" },
   { src: "/hero/team-miami.jpg", pos: "center 32%" },
-  { src: "/hero/jay-4.png", pos: "center 22%" },
-  { src: "/hero/team-banner.jpg", pos: "center 45%" },
-  { src: "/hero/jay-2.png", pos: "center 22%" },
+  { src: "/hero/team-banner.jpg", pos: "center 42%" },
   { src: "/hero/team-huddle.jpg", pos: "center 48%" },
-  { src: "/hero/jay-8.jpg", pos: "center 35%" },
   { src: "/hero/team-meeting.jpg", pos: "center 32%" },
-  { src: "/hero/jay-9.jpg", pos: "center 42%" },
+  { src: "/hero/team-table.jpg", pos: "center 28%" },
+  { src: "/hero/team-circle.jpg", pos: "center 38%" },
 ];
 
 /** Editorial mosaic on the landing — the rest of the room, not just Jay. */
@@ -126,12 +123,6 @@ export default function Landing() {
           <Logo />
           <nav className="flex items-center gap-1 sm:gap-4">
             <a
-              href="#mentorship"
-              className="hidden px-2 py-1.5 text-sm font-medium text-white/55 transition hover:text-white sm:inline"
-            >
-              Mentorship
-            </a>
-            <a
               href="#team"
               className="hidden px-2 py-1.5 text-sm font-medium text-white/55 transition hover:text-white sm:inline"
             >
@@ -201,51 +192,6 @@ export default function Landing() {
                 </span>
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* mentorship — PAPER band, Jay blended in */}
-      <section id="mentorship" style={{ background: PAPER }}>
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-24 lg:grid-cols-[0.8fr_1.2fr] lg:py-32">
-          <div className="w-full max-w-sm">
-            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl shadow-[0_35px_70px_-20px_rgba(0,0,0,0.45)] ring-1 ring-black/5 transition duration-500 hover:-translate-y-1.5 hover:shadow-[0_45px_85px_-20px_rgba(0,0,0,0.5)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/hero/jay-founder.jpg"
-                alt="Jay — NonStop Financial"
-                className="absolute inset-0 h-full w-full object-cover object-[center_55%]"
-              />
-            </div>
-            <div className="mt-4">
-              <p className="font-display text-xl font-bold text-zinc-900">Jay</p>
-              <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                Founder &amp; Mentor
-              </p>
-            </div>
-          </div>
-
-          <div className="max-w-xl">
-            <Eyebrow>Mentorship</Eyebrow>
-            <p className="mt-6 font-display text-3xl font-bold leading-[1.05] text-zinc-900 sm:text-5xl">
-              Talent is everywhere. Mentorship is rare.
-            </p>
-            <div className="mt-6 space-y-4 text-[15px] leading-relaxed text-zinc-600">
-              <p>
-                Jay founded NonStop Financial as a way to help his friends access
-                a world of success. Over the past half-decade the business has
-                accelerated like a fractal — helping thousands become independent
-                advisors and salespeople.
-              </p>
-              <p>
-                When you join NonStop, you don&apos;t get a course and a
-                &ldquo;good luck.&rdquo; You get a mentor in your corner, the exact
-                systems that work, and a team that wants you to win.
-              </p>
-            </div>
-            <p className="mt-7 text-xs uppercase tracking-[0.2em] text-zinc-400">
-              Field-tested · Carrier-appointed · Team-built
-            </p>
           </div>
         </div>
       </section>
@@ -386,7 +332,9 @@ export default function Landing() {
       <QuoteBand
         quote="I believe there's a NonStop-able version of each and every one of us. I'm here to unlock it."
         author="Jay Maska"
-        photo="/hero/jay-2.png"
+        photo="/hero/team-huddle.jpg"
+        photoPos="center 42%"
+        photoAlt="The NonStop team in a training huddle"
       />
 
       {/* closing CTA — PAPER band */}
@@ -438,10 +386,14 @@ function QuoteBand({
   quote,
   author,
   photo,
+  photoPos = "center 18%",
+  photoAlt,
 }: {
   quote: string;
   author: string;
   photo: string;
+  photoPos?: string;
+  photoAlt?: string;
 }) {
   return (
     <section
@@ -453,8 +405,9 @@ function QuoteBand({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photo}
-          alt={author}
-          className="h-full w-full object-cover object-[center_18%]"
+          alt={photoAlt ?? author}
+          style={{ objectPosition: photoPos }}
+          className="h-full w-full object-cover"
         />
       </div>
       {/* scrim: dark on the right (for the quote), photo shows on the left */}
