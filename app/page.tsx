@@ -397,11 +397,12 @@ function QuoteBand({
 }) {
   return (
     <section
+      id="quote"
       className="relative isolate flex min-h-[72svh] items-center overflow-hidden"
       style={{ background: INK }}
     >
-      {/* photo on the left */}
-      <div className="absolute inset-0 lg:right-auto lg:w-[54%]">
+      {/* full-bleed team photo — we fade it, we don't crop it */}
+      <div className="absolute inset-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photo}
@@ -410,8 +411,14 @@ function QuoteBand({
           className="h-full w-full object-cover"
         />
       </div>
-      {/* scrim: dark on the right (for the quote), photo shows on the left */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#0d0e11] via-[#0d0e11]/85 to-[#0d0e11]/10 lg:via-[#0d0e11]/80 lg:to-transparent" />
+      {/* soft fade: team stays on the left half, quote sits on ink at the right */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(to left, #0d0e11 0%, #0d0e11 36%, rgba(13,14,17,0.88) 48%, rgba(13,14,17,0.5) 60%, rgba(13,14,17,0.18) 74%, rgba(13,14,17,0.04) 86%, transparent 100%)",
+        }}
+      />
 
       <div className="relative mx-auto w-full max-w-6xl px-6 py-24">
         <blockquote className="ml-auto max-w-2xl text-right">
