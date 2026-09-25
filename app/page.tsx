@@ -27,51 +27,51 @@ const SHOW_INTRO = false;
  * stay in frame (the hero crops landscape shots hard).
  */
 const HERO_PHOTOS: { src: string; pos: string }[] = [
+  { src: "/hero/team-ignyte.jpg", pos: "center 42%" },
+  { src: "/hero/team-ignyte-2.jpg", pos: "center 46%" },
+  { src: "/hero/team-hallway.jpg", pos: "center 38%" },
   { src: "/hero/team-miami.jpg", pos: "center 32%" },
-  { src: "/hero/team-banner.jpg", pos: "center 42%" },
-  { src: "/hero/team-huddle.jpg", pos: "center 48%" },
-  { src: "/hero/team-meeting.jpg", pos: "center 32%" },
-  { src: "/hero/team-table.jpg", pos: "center 28%" },
-  { src: "/hero/team-circle.jpg", pos: "center 38%" },
+  { src: "/hero/team-speaking.jpg", pos: "center 28%" },
+  { src: "/hero/team-conversation.jpg", pos: "center 30%" },
 ];
 
 /** Editorial mosaic on the landing — the rest of the room, not just Jay. */
 const TEAM_PHOTOS: { src: string; pos: string; alt: string; span: string }[] = [
   {
-    src: "/hero/team-miami.jpg",
-    pos: "center 38%",
-    alt: "The NonStop team together outdoors",
+    src: "/hero/team-ignyte.jpg",
+    pos: "center 42%",
+    alt: "The NonStop team together at Ignyte",
     span: "col-span-12 min-h-[220px] sm:min-h-[280px] lg:col-span-8 lg:row-span-2 lg:min-h-[440px]",
   },
   {
-    src: "/hero/team-banner.jpg",
-    pos: "center 48%",
-    alt: "Producers in front of the NonStop Financial banner",
-    span: "col-span-6 min-h-[160px] sm:min-h-[200px] lg:col-span-4 lg:min-h-[214px]",
+    src: "/hero/team-hallway.jpg",
+    pos: "center 40%",
+    alt: "Producers packed into a training hallway",
+    span: "col-span-6 min-h-[200px] sm:min-h-[240px] lg:col-span-4 lg:min-h-[214px]",
   },
   {
-    src: "/hero/team-huddle.jpg",
-    pos: "center 50%",
-    alt: "The team in a training huddle",
-    span: "col-span-6 min-h-[160px] sm:min-h-[200px] lg:col-span-4 lg:min-h-[214px]",
+    src: "/hero/team-speaking.jpg",
+    pos: "center 28%",
+    alt: "A mentor speaking to the room",
+    span: "col-span-6 min-h-[200px] sm:min-h-[240px] lg:col-span-4 lg:min-h-[214px]",
   },
   {
-    src: "/hero/team-meeting.jpg",
-    pos: "center 42%",
-    alt: "Mentorship around the conference table",
-    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-4 lg:min-h-[280px]",
+    src: "/hero/team-ignyte-2.jpg",
+    pos: "center 46%",
+    alt: "The crew in front of the Ignyte backdrop",
+    span: "col-span-12 min-h-[180px] sm:min-h-[220px] lg:col-span-6 lg:min-h-[280px]",
   },
   {
-    src: "/hero/team-table.jpg",
-    pos: "center 32%",
-    alt: "The team in session",
-    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-4 lg:min-h-[280px]",
+    src: "/hero/team-conversation.jpg",
+    pos: "center 30%",
+    alt: "One-on-one around the table",
+    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-3 lg:min-h-[280px]",
   },
   {
-    src: "/hero/team-circle.jpg",
+    src: "/hero/team-miami.jpg",
     pos: "center 38%",
-    alt: "A huddle from the floor",
-    span: "col-span-12 min-h-[180px] sm:min-h-[220px] lg:col-span-4 lg:min-h-[280px]",
+    alt: "The NonStop team together outdoors",
+    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-3 lg:min-h-[280px]",
   },
 ];
 
@@ -332,9 +332,9 @@ export default function Landing() {
       <QuoteBand
         quote="I believe there's a NonStop-able version of each and every one of us. I'm here to unlock it."
         author="Jay Maska"
-        photo="/hero/team-huddle.jpg"
-        photoPos="center 42%"
-        photoAlt="The NonStop team in a training huddle"
+        photo="/hero/team-ignyte.jpg"
+        photoPos="center 46%"
+        photoAlt="The NonStop team together at Ignyte"
       />
 
       {/* closing CTA — PAPER band */}

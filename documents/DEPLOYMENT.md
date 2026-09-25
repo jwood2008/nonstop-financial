@@ -8,8 +8,11 @@ Status of your project (checked 2026-06-09):
 - ✅ `DEMO_MODE` is now **false** — login goes through real Supabase auth.
 - ✅ Production build passes (`npm run build`).
 
+Production domain: **`agentsuccesscamp.com`** (www redirects here).
+`nonstopablenation.com` stays attached as a fallback.
+
 What's left is configuration in three dashboards: **Vercel**, **Supabase**, and
-**Stripe**. Replace `YOUR_DOMAIN` below with the real domain everywhere.
+**Stripe**. Use `agentsuccesscamp.com` everywhere `YOUR_DOMAIN` appears below.
 
 ---
 
@@ -81,9 +84,21 @@ Also decide under **Authentication → Providers → Email**:
 
 ## 5. Custom domain (Vercel → Settings → Domains)
 
-1. Add `YOUR_DOMAIN`.
-2. Point DNS at Vercel (A record `76.76.21.21`, or the CNAME Vercel shows).
-3. Wait for the SSL cert to issue (usually minutes).
+Canonical host: **`agentsuccesscamp.com`**. `www.agentsuccesscamp.com` is a 308
+to the apex. Both are already added and verified on the `nonstop-financial`
+Vercel project.
+
+DNS is still at GoDaddy (`ns09`/`ns10.domaincontrol.com`) and currently points
+at Wix (`185.230.63.107` / `pointing.wixdns.net`). Change these two records in
+the same DNS panel Anna screenshotted:
+
+| Type | Name | Change Data to |
+| --- | --- | --- |
+| A | `@` | `76.76.21.21` |
+| CNAME | `www` | `cname.vercel-dns.com` |
+
+Leave the NS, SOA, and `_domainconnect` records alone. SSL issues once the A
+record propagates (usually minutes, sometimes a few hours).
 
 ## 6. Post-deploy smoke test
 
