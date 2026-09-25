@@ -35,11 +35,10 @@ const MODULE_IMAGES = [
 const HERO_IMAGES: { src: string; pos: string }[] = [
   { src: "/hero/team-ignyte.jpg", pos: "center 40%" },
   { src: "/hero/team-ignyte-2.jpg", pos: "center 45%" },
-  { src: "/hero/team-hallway.jpg", pos: "center 38%" },
   { src: "/hero/team-miami.jpg", pos: "center 32%" },
-  { src: "/hero/team-speaking.jpg", pos: "center 28%" },
-  { src: "/hero/team-conversation.jpg", pos: "center 30%" },
   { src: "/hero/team-banner.jpg", pos: "center 45%" },
+  { src: "/hero/team-huddle.jpg", pos: "center 48%" },
+  { src: "/hero/jay-8.jpg", pos: "center 35%" },
 ];
 
 // Spotlight cards now live in the store (admin-editable, synced to Supabase) —

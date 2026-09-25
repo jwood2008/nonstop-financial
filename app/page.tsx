@@ -29,10 +29,10 @@ const SHOW_INTRO = false;
 const HERO_PHOTOS: { src: string; pos: string }[] = [
   { src: "/hero/team-ignyte.jpg", pos: "center 42%" },
   { src: "/hero/team-ignyte-2.jpg", pos: "center 46%" },
-  { src: "/hero/team-hallway.jpg", pos: "center 38%" },
   { src: "/hero/team-miami.jpg", pos: "center 32%" },
-  { src: "/hero/team-speaking.jpg", pos: "center 28%" },
-  { src: "/hero/team-conversation.jpg", pos: "center 30%" },
+  { src: "/hero/team-banner.jpg", pos: "center 42%" },
+  { src: "/hero/team-huddle.jpg", pos: "center 48%" },
+  { src: "/hero/team-meeting.jpg", pos: "center 32%" },
 ];
 
 /** Editorial mosaic on the landing — the rest of the room, not just Jay. */
@@ -41,37 +41,37 @@ const TEAM_PHOTOS: { src: string; pos: string; alt: string; span: string }[] = [
     src: "/hero/team-ignyte.jpg",
     pos: "center 42%",
     alt: "The NonStop team together at Ignyte",
-    span: "col-span-12 min-h-[220px] sm:min-h-[280px] lg:col-span-8 lg:row-span-2 lg:min-h-[440px]",
+    span: "col-span-12 min-h-[220px] sm:min-h-[280px] lg:col-span-8 lg:row-span-2 lg:min-h-[520px]",
   },
   {
     src: "/hero/team-hallway.jpg",
-    pos: "center 40%",
+    pos: "center 42%",
     alt: "Producers packed into a training hallway",
-    span: "col-span-6 min-h-[200px] sm:min-h-[240px] lg:col-span-4 lg:min-h-[214px]",
+    span: "col-span-6 min-h-[320px] sm:min-h-[400px] lg:col-span-4 lg:row-span-2 lg:min-h-[520px]",
   },
   {
     src: "/hero/team-speaking.jpg",
-    pos: "center 28%",
+    pos: "center 22%",
     alt: "A mentor speaking to the room",
-    span: "col-span-6 min-h-[200px] sm:min-h-[240px] lg:col-span-4 lg:min-h-[214px]",
+    span: "col-span-6 min-h-[280px] sm:min-h-[340px] lg:col-span-4 lg:min-h-[380px]",
+  },
+  {
+    src: "/hero/team-conversation.jpg",
+    pos: "center 28%",
+    alt: "One-on-one around the table",
+    span: "col-span-6 min-h-[280px] sm:min-h-[340px] lg:col-span-4 lg:min-h-[380px]",
   },
   {
     src: "/hero/team-ignyte-2.jpg",
     pos: "center 46%",
     alt: "The crew in front of the Ignyte backdrop",
-    span: "col-span-12 min-h-[180px] sm:min-h-[220px] lg:col-span-6 lg:min-h-[280px]",
-  },
-  {
-    src: "/hero/team-conversation.jpg",
-    pos: "center 30%",
-    alt: "One-on-one around the table",
-    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-3 lg:min-h-[280px]",
+    span: "col-span-12 min-h-[180px] sm:min-h-[220px] lg:col-span-4 lg:min-h-[380px]",
   },
   {
     src: "/hero/team-miami.jpg",
     pos: "center 38%",
     alt: "The NonStop team together outdoors",
-    span: "col-span-6 min-h-[180px] sm:min-h-[220px] lg:col-span-3 lg:min-h-[280px]",
+    span: "col-span-12 min-h-[180px] sm:min-h-[220px] lg:col-span-12 lg:min-h-[280px]",
   },
 ];
 
